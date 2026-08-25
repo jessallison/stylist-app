@@ -1,4 +1,14 @@
 import "./globals.css";
+import { Playfair_Display } from "next/font/google";
+
+// Editorial serif for the brand and headings - Didone-adjacent, in the
+// spirit of the fashion-house references. Self-hosted by next/font at build.
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  weight: ["400", "500", "600"],
+  variable: "--font-display",
+});
 
 export const metadata = {
   title: "Jess' Stylist",
@@ -13,12 +23,12 @@ export const metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#efe5d8",
+  themeColor: "#f8f6f1",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={playfair.variable}>
       <body>{children}</body>
     </html>
   );

@@ -375,7 +375,10 @@ function LoginModal({ onClose, onSuccess, noClose = false, title = "Unlock" }) {
   }
 
   return (
-    <div className="modal-bg" onClick={noClose ? undefined : onClose}>
+    <div
+      className={`modal-bg ${noClose ? "gate" : ""}`}
+      onClick={noClose ? undefined : onClose}
+    >
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>{title}</h2>
         <input
