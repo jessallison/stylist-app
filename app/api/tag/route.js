@@ -27,7 +27,13 @@ export async function POST(request) {
       { status: 503 }
     );
   }
-  const { image, kind } = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Bad request" }, { status: 400 });
+  }
+  const { image, kind } = body || {};
   const img = imageBlock(image);
   if (!img || !["wardrobe", "inspo"].includes(kind)) {
     return Response.json({ error: "Bad request" }, { status: 400 });
@@ -40,6 +46,7 @@ export async function POST(request) {
 Reply with ONLY a JSON object, no other text:
 {
   "name": "short natural name for the item, e.g. 'Cream wide-leg trousers'",
+  "brand": "brand name ONLY if clearly legible on a label, tag or listing in the shot, else empty string - never guess",
   "category": one of [${list(CATEGORIES)}],
   "colours": array of 1-3 from [${list(COLOURS)}],
   "season": one of [${list(SEASONS)}],

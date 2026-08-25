@@ -482,6 +482,10 @@ header.top {
   margin-bottom: 6px;
 }
 
+.form .cols.name-brand {
+  grid-template-columns: 2fr 1fr;
+}
+
 .form-photo-row {
   display: flex;
   gap: 14px;
@@ -841,6 +845,7 @@ header.top {
   }
   .form .cols,
   .form .cols.two,
+  .form .cols.name-brand,
   .flow-row,
   .three-words {
     grid-template-columns: 1fr;

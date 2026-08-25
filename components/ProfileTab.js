@@ -36,12 +36,14 @@ export default function ProfileTab({
     setBusy((b) => b + 1);
     try {
       const photoId = newId("pp");
-      if (!(await uploadImage(adminKey, photoId, dataUrl))) {
-        flash("Upload failed - try again");
+      const up = await uploadImage(adminKey, photoId, dataUrl);
+      if (!up.ok) {
+        flash(up.error);
         return;
       }
       const item = { id: newId("p"), photoId, context, addedAt: Date.now() };
-      await save("styleProfile", (cur) => [...cur, item]);
+      const ok = await save("styleProfile", (cur) => [...cur, item]);
+      if (!ok) deleteImage(adminKey, photoId);
     } finally {
       setBusy((b) => b - 1);
     }
@@ -200,6 +202,7 @@ export default function ProfileTab({
           className="btn"
           label={busy ? `Adding… (${busy})` : `+ Add to ${PROFILE_CONTEXTS.find(([v]) => v === context)[1]}`}
           onPhoto={addPhoto}
+          onError={flash}
           multiple
         />
       </div>

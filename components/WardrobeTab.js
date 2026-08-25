@@ -21,6 +21,7 @@ import {
 
 const EMPTY_FORM = {
   name: "",
+  brand: "",
   category: "Tops",
   colours: [],
   season: "All year",
@@ -50,6 +51,7 @@ export default function WardrobeTab({
   const [tagging, setTagging] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [cats, setCats] = useState(new Set());
+  const [brands, setBrands] = useState(new Set());
   const [cols, setCols] = useState(new Set());
   const [seas, setSeas] = useState(new Set());
   const [status, setStatus] = useState(new Set());
@@ -84,6 +86,7 @@ export default function WardrobeTab({
         setForm((f) => ({
           ...f,
           name: t.name || f.name,
+          brand: t.brand || f.brand,
           category: CATEGORIES.includes(t.category) ? t.category : f.category,
           colours: (t.colours || []).filter((c) => COLOURS.includes(c)),
           season: SEASONS.includes(t.season) ? t.season : f.season,
@@ -105,6 +108,7 @@ export default function WardrobeTab({
     if (!requireUnlock()) return;
     setForm({
       name: item.name,
+      brand: item.brand || "",
       category: item.category || "Tops",
       colours: item.colours || [],
       season: item.season || "All year",
@@ -128,18 +132,21 @@ export default function WardrobeTab({
     const id = isNew ? newId("w") : editingId;
     let photoId = original?.photoId;
 
+    let uploadedNew = false;
     if (photo) {
       photoId = newId("wp");
-      if (!(await uploadImage(adminKey, photoId, photo))) {
-        flash("Photo upload failed - try again");
+      const up = await uploadImage(adminKey, photoId, photo);
+      if (!up.ok) {
+        flash(up.error);
         return;
       }
-      if (original?.photoId) deleteImage(adminKey, original.photoId);
+      uploadedNew = true;
     }
 
     const item = {
       id,
       name,
+      brand: form.brand.trim(),
       photoId,
       category: form.category,
       colours: form.colours,
@@ -156,7 +163,14 @@ export default function WardrobeTab({
       "wardrobe",
       isNew ? [...wardrobe, item] : wardrobe.map((w) => (w.id === id ? item : w))
     );
-    if (!ok) return;
+    if (!ok) {
+      // Save failed: clean up the just-uploaded photo so nothing orphans,
+      // and leave the form open so the entry isn't lost.
+      if (uploadedNew) deleteImage(adminKey, photoId);
+      return;
+    }
+    // Only retire the old photo once the item actually points at the new one.
+    if (uploadedNew && original?.photoId) deleteImage(adminKey, original.photoId);
     setEditingId(null);
     setPhoto(null);
     // wanted -> owned means "I bought it": offer styling ideas straight away.
@@ -212,17 +226,28 @@ export default function WardrobeTab({
               className="btn ghost"
               label={photo || original?.photoId ? "Replace photo" : "Add photo"}
               onPhoto={setPhoto}
+              onError={flash}
             />
             {tagging && <div className="count" style={{ marginTop: 8 }}>Suggesting tags…</div>}
           </div>
         </div>
-        <div>
-          <label>Name</label>
-          <input
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="e.g. Cream Esse pants"
-          />
+        <div className="cols name-brand">
+          <div>
+            <label>Name</label>
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Cream wide-leg pants"
+            />
+          </div>
+          <div>
+            <label>Brand (optional)</label>
+            <input
+              value={form.brand}
+              onChange={(e) => setForm({ ...form, brand: e.target.value })}
+              placeholder="e.g. Esse"
+            />
+          </div>
         </div>
         <div>
           <label>Category</label>
@@ -352,11 +377,13 @@ export default function WardrobeTab({
   const inSearch = (w) =>
     !q ||
     norm(w.name).includes(q) ||
+    norm(w.brand).includes(q) ||
     norm(w.category).includes(q) ||
     (w.colours || []).some((c) => norm(c).includes(q)) ||
     (w.tags || []).some((t) => norm(t).includes(q));
 
   function passes(w, skip) {
+    if (skip !== "brand" && brands.size && !brands.has(w.brand || "")) return false;
     if (skip !== "cat" && cats.size && !cats.has(w.category)) return false;
     if (skip !== "col" && cols.size && !(w.colours || []).some((c) => cols.has(c)))
       return false;
@@ -379,7 +406,10 @@ export default function WardrobeTab({
     .filter((w) => passes(w))
     .sort((a, b) => a.name.localeCompare(b.name));
   const ownedCount = wardrobe.filter((w) => w.status === "owned").length;
-  const activeCount = cats.size + cols.size + seas.size + status.size + flags.size;
+  const activeCount =
+    cats.size + brands.size + cols.size + seas.size + status.size + flags.size;
+  // Brand facet is derived from whatever's been entered - no maintained list.
+  const allBrands = [...new Set(wardrobe.map((w) => w.brand).filter(Boolean))].sort();
 
   return (
     <div>
@@ -398,7 +428,12 @@ export default function WardrobeTab({
         >
           Filters{activeCount ? ` (${activeCount})` : ""}
         </button>
-        <PhotoButton className="btn" label="+ Add from photo" onPhoto={startNew} />
+        <PhotoButton
+          className="btn"
+          label="+ Add from photo"
+          onPhoto={startNew}
+          onError={flash}
+        />
       </div>
       {showFilters && (
         <div className="filter-panel">
@@ -408,6 +443,14 @@ export default function WardrobeTab({
             selected={cats}
             onToggle={(v) => toggleIn(cats, v, setCats)}
           />
+          {allBrands.length > 0 && (
+            <FilterGroup
+              title="Brand"
+              options={countsFor("brand", allBrands.map((b) => [b, b]), (w, v) => w.brand === v)}
+              selected={brands}
+              onToggle={(v) => toggleIn(brands, v, setBrands)}
+            />
+          )}
           <FilterGroup
             title="Colour"
             options={countsFor("col", COLOURS.map((c) => [c, c]), (w, v) =>
@@ -467,7 +510,7 @@ export default function WardrobeTab({
             <div className="card-body">
               <h3>{w.name}</h3>
               <div className="meta">
-                {[w.category, (w.colours || []).join(", "), w.season]
+                {[w.brand, w.category, (w.colours || []).join(", "), w.season]
                   .filter(Boolean)
                   .join(" · ")}
               </div>

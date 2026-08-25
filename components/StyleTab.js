@@ -149,6 +149,7 @@ export default function StyleTab({
                 setImage(d);
                 setInspoId("");
               }}
+              onError={flash}
             />
           </div>
           {(inspoId || image) && (
@@ -183,6 +184,7 @@ export default function StyleTab({
                 setImage(d);
                 setAnchorId("");
               }}
+              onError={flash}
             />
           </div>
           {(anchorId || image) && (

@@ -16,22 +16,49 @@ export function toggleIn(set, value, setter) {
   setter(next);
 }
 
-// Read a picked file, downscale to max 900px and re-encode as JPEG so a
-// 4MB phone photo becomes a ~100KB record. Returns a data URL.
+// Read a picked file, downscale and re-encode as JPEG so a 4MB phone photo
+// becomes a ~100KB record. Steps the size down further if the first pass is
+// still too big (very long screenshots), so uploads never bounce off the
+// server's size cap. Returns a data URL.
+// Note: browsers can't decode HEIC via <img> - iOS converts photo-picker
+// picks to JPEG automatically, but a raw .heic from the Files app will fail
+// here and surfaces as "couldn't read" rather than a silent skip.
 export function fileToDataUrl(file, maxDim = 900, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Couldn't read file"));
+    reader.onerror = () =>
+      reject(new Error(`Couldn't read "${file.name || "file"}"`));
     reader.onload = () => {
       const img = new Image();
-      img.onerror = () => reject(new Error("Not an image"));
+      img.onerror = () =>
+        reject(
+          new Error(
+            `Couldn't read "${file.name || "file"}" as an image (HEIC files need converting to JPEG first)`
+          )
+        );
       img.onload = () => {
-        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", quality));
+        try {
+          const attempts = [
+            [maxDim, quality],
+            [700, 0.72],
+            [550, 0.6],
+          ];
+          for (const [dim, q] of attempts) {
+            const scale = Math.min(1, dim / Math.max(img.width, img.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            canvas
+              .getContext("2d")
+              .drawImage(img, 0, 0, canvas.width, canvas.height);
+            const out = canvas.toDataURL("image/jpeg", q);
+            // Stay under the server's 900KB cap with headroom.
+            if (out.length < 650_000) return resolve(out);
+          }
+          reject(new Error(`"${file.name || "Image"}" is too large to compress`));
+        } catch (e) {
+          reject(e);
+        }
       };
       img.src = reader.result;
     };
@@ -88,7 +115,8 @@ export function FilterGroup({ title, options, selected, onToggle }) {
 }
 
 // A photo file input styled as a button; hands back a compressed data URL.
-export function PhotoButton({ label, onPhoto, multiple = false, className }) {
+// Unreadable files are reported through onError, never silently skipped.
+export function PhotoButton({ label, onPhoto, onError, multiple = false, className }) {
   return (
     <label className={className || "btn"} style={{ cursor: "pointer" }}>
       {label}
@@ -102,9 +130,9 @@ export function PhotoButton({ label, onPhoto, multiple = false, className }) {
           e.target.value = "";
           for (const f of files) {
             try {
-              onPhoto(await fileToDataUrl(f));
-            } catch {
-              /* skip unreadable file */
+              await onPhoto(await fileToDataUrl(f));
+            } catch (err) {
+              onError?.(err.message || "Couldn't read that image");
             }
           }
         }}
@@ -119,19 +147,27 @@ export function Thumb({ photoId, dataUrl, alt = "", className = "thumb" }) {
   return <img className={className} src={src} alt={alt} loading="lazy" />;
 }
 
-// Upload an image to the store; returns true on success.
+// Upload an image to the store. Returns { ok, error } - error carries the
+// server's reason (too large, database down) for the toast.
 export async function uploadImage(adminKey, id, dataUrl) {
-  const res = await fetch("/api/image", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
-    body: JSON.stringify({ id, dataUrl }),
-  });
-  return res.ok;
+  try {
+    const res = await fetch("/api/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
+      body: JSON.stringify({ id, dataUrl }),
+    });
+    if (res.ok) return { ok: true };
+    const j = await res.json().catch(() => ({}));
+    return { ok: false, error: j.error || "Photo upload failed - try again" };
+  } catch {
+    return { ok: false, error: "No connection - photo upload failed" };
+  }
 }
 
+// Best-effort cleanup; failures are logged, never surfaced.
 export function deleteImage(adminKey, id) {
   return fetch(`/api/image/${id}`, {
     method: "DELETE",
     headers: { "x-admin-key": adminKey || "" },
-  });
+  }).catch(() => {});
 }

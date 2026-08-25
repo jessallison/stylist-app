@@ -3,7 +3,13 @@ export const dynamic = "force-dynamic";
 // Login sets an httpOnly cookie so image tags and the data-download link
 // authenticate without JavaScript involvement; logout clears it.
 export async function POST(request) {
-  const { password, logout } = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Bad request" }, { status: 400 });
+  }
+  const { password, logout } = body || {};
   const pw = process.env.ADMIN_PASSWORD;
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
 

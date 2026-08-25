@@ -54,8 +54,9 @@ export default function InspoTab({
     setBusy((b) => b + 1);
     try {
       const photoId = newId("ip");
-      if (!(await uploadImage(adminKey, photoId, dataUrl))) {
-        flash("Upload failed - try again");
+      const up = await uploadImage(adminKey, photoId, dataUrl);
+      if (!up.ok) {
+        flash(up.error);
         return;
       }
       let tags = {};
@@ -90,7 +91,11 @@ export default function InspoTab({
       };
       // Functional update so a multi-file batch appends cleanly instead of
       // each file clobbering the previous one's save.
-      await save("inspo", (cur) => [...cur, item]);
+      const ok = await save("inspo", (cur) => [...cur, item]);
+      if (!ok) {
+        deleteImage(adminKey, photoId);
+        return;
+      }
       if (item.type === "product") {
         flash("Saved - looks like a product pin. Add it to the wardrobe as wanted?");
       }
@@ -258,6 +263,7 @@ export default function InspoTab({
           className="btn"
           label={busy ? `Adding… (${busy})` : "+ Add images"}
           onPhoto={addPhoto}
+          onError={flash}
           multiple
         />
       </div>

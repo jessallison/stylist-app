@@ -66,22 +66,32 @@ export default function Home() {
       computed = typeof next === "function" ? next(d[type]) : next;
       return { ...d, [type]: computed };
     });
-    const res = await fetch("/api/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-key": adminKey || "",
-      },
-      body: JSON.stringify({ type, data: computed }),
-    });
+    let res;
+    try {
+      res = await fetch("/api/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-key": adminKey || "",
+        },
+        body: JSON.stringify({ type, data: computed }),
+      });
+    } catch {
+      // Offline / connection dropped: roll back so the screen never shows
+      // state the database doesn't have.
+      setData((d) => ({ ...d, [type]: prev }));
+      flash("No connection - change not saved");
+      return false;
+    }
     if (res.status === 401) {
       setData((d) => ({ ...d, [type]: prev }));
       setShowLogin(true);
       return false;
     }
     if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
       setData((d) => ({ ...d, [type]: prev }));
-      flash("Save failed - try again");
+      flash(j.error || "Save failed - try again");
       return false;
     }
     return true;
@@ -135,7 +145,8 @@ export default function Home() {
         r.readAsDataURL(blob);
       });
       const photoId = newId("wp");
-      if (!(await uploadImage(adminKey, photoId, dataUrl))) throw new Error("upload");
+      const up = await uploadImage(adminKey, photoId, dataUrl);
+      if (!up.ok) throw new Error(up.error);
 
       let t = {};
       if (data.ai) {
@@ -152,6 +163,7 @@ export default function Home() {
       const item = {
         id: newId("w"),
         name: t.name || inspoItem.productName || "New wanted piece",
+        brand: t.brand || "",
         photoId,
         category: CATEGORIES.includes(t.category) ? t.category : "Other",
         colours: (t.colours || inspoItem.colours || []).filter((c) =>
@@ -173,13 +185,31 @@ export default function Home() {
       const ok = await save("wardrobe", (cur) => [...cur, item]);
       if (ok) {
         flash(`"${item.name}" added as wanted - check its tags in Wardrobe`);
+      } else {
+        deleteImage(adminKey, photoId);
       }
-    } catch {
-      flash("Couldn't add it - try again");
+    } catch (e) {
+      flash(e?.message || "Couldn't add it - try again");
     }
   }
 
-  if (loadErr) return <div className="wrap empty">{loadErr}</div>;
+  if (loadErr) {
+    return (
+      <div className="wrap empty">
+        <div>{loadErr}</div>
+        <button
+          className="btn"
+          style={{ marginTop: 14 }}
+          onClick={() => {
+            setLoadErr(null);
+            load(localStorage.getItem(KEY_STORAGE));
+          }}
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   // The gate: nothing renders until the password checks out.
   if (locked) {

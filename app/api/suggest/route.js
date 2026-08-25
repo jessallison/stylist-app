@@ -44,18 +44,32 @@ export async function POST(request) {
     );
   }
 
-  const body = await request.json();
-  const { flow, filters = {} } = body;
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Bad request" }, { status: 400 });
+  }
+  const { flow, filters = {} } = body || {};
   if (!["A", "B", "C"].includes(flow)) {
     return Response.json({ error: "Bad request" }, { status: 400 });
   }
 
-  const [wardrobe, inspo, styleProfile, settings] = await Promise.all([
-    getData("wardrobe"),
-    getData("inspo"),
-    getData("styleProfile"),
-    getData("settings"),
-  ]);
+  let wardrobe, inspo, styleProfile, settings;
+  try {
+    [wardrobe, inspo, styleProfile, settings] = await Promise.all([
+      getData("wardrobe"),
+      getData("inspo"),
+      getData("styleProfile"),
+      getData("settings"),
+    ]);
+  } catch (e) {
+    console.error("suggest data error", e);
+    return Response.json(
+      { error: "Couldn't reach the database - try again in a moment" },
+      { status: 502 }
+    );
+  }
 
   // Only owned, currently-wearable pieces are ever assembled into an outfit.
   const wearable = wardrobe.filter(
@@ -87,12 +101,20 @@ export async function POST(request) {
   // Source image: an inspo library item (A), a fresh upload (A or C), or the
   // anchor item's own photo (C).
   let sourceImage = null;
-  if (body.image) sourceImage = body.image;
-  else if (flow === "A" && body.inspoId) {
-    const item = inspo.find((i) => i.id === body.inspoId);
-    if (item?.photoId) sourceImage = await getImage(item.photoId);
-  } else if (anchor?.photoId) {
-    sourceImage = await getImage(anchor.photoId);
+  try {
+    if (body.image) sourceImage = body.image;
+    else if (flow === "A" && body.inspoId) {
+      const item = inspo.find((i) => i.id === body.inspoId);
+      if (item?.photoId) sourceImage = await getImage(item.photoId);
+    } else if (anchor?.photoId) {
+      sourceImage = await getImage(anchor.photoId);
+    }
+  } catch (e) {
+    console.error("suggest image fetch error", e);
+    return Response.json(
+      { error: "Couldn't load the source image - try again in a moment" },
+      { status: 502 }
+    );
   }
   if ((flow === "A" || flow === "C") && !sourceImage && !anchor) {
     return Response.json({ error: "No source image provided" }, { status: 400 });
@@ -177,11 +199,16 @@ ${flowText}`;
   const content = [];
   const srcBlock = imageBlock(sourceImage);
   if (srcBlock && (flow === "A" || flow === "C")) content.push(srcBlock);
-  // "Just me" gets a few worn-outfit photos as grounding for how she really dresses.
+  // "Just me" gets a few worn-outfit photos as grounding for how she really
+  // dresses. Best-effort: a photo that won't load just gets skipped.
   if (flow === "B" && filters.justMe) {
     for (const p of styleProfile.slice(0, 3)) {
-      const img = imageBlock(await getImage(p.photoId));
-      if (img) content.push(img);
+      try {
+        const img = imageBlock(await getImage(p.photoId));
+        if (img) content.push(img);
+      } catch {
+        /* skip */
+      }
     }
   }
   content.push({ type: "text", text: userText });
