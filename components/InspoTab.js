@@ -323,10 +323,12 @@ export default function InspoTab({
 
       <div className="grid">
         {shown.map((i) => (
-          <div key={i.id} className="card item-card">
-            <div className="clickable" onClick={() => startEdit(i)}>
-              <Thumb photoId={i.photoId} className="thumb tall" />
-            </div>
+          <div
+            key={i.id}
+            className="card item-card clickable"
+            onClick={() => startEdit(i)}
+          >
+            <Thumb photoId={i.photoId} className="thumb tall" />
             <div className="card-body">
               <div className="badges">
                 <span className={`badge type-${i.type}`}>{TYPE_LABEL[i.type]}</span>
@@ -336,11 +338,23 @@ export default function InspoTab({
               {i.notes && <div className="meta">{i.notes}</div>}
               <div className="card-actions">
                 {i.type === "product" ? (
-                  <button className="chip" onClick={() => onAddWanted(i)}>
+                  <button
+                    className="chip"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddWanted(i);
+                    }}
+                  >
                     Add to wardrobe as wanted
                   </button>
                 ) : (
-                  <button className="chip" onClick={() => onMatch(i.id)}>
+                  <button
+                    className="chip"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMatch(i.id);
+                    }}
+                  >
                     Style me
                   </button>
                 )}

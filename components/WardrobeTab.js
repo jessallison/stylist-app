@@ -503,10 +503,12 @@ export default function WardrobeTab({
 
       <div className="grid">
         {shown.map((w) => (
-          <div key={w.id} className="card item-card">
-            <div className="clickable" onClick={() => startEdit(w)}>
-              <Thumb photoId={w.photoId} alt={w.name} />
-            </div>
+          <div
+            key={w.id}
+            className="card item-card clickable"
+            onClick={() => startEdit(w)}
+          >
+            <Thumb photoId={w.photoId} alt={w.name} />
             <div className="card-body">
               <h3>{w.name}</h3>
               <div className="meta">
@@ -528,11 +530,23 @@ export default function WardrobeTab({
               </div>
               <div className="card-actions">
                 {w.status === "owned" ? (
-                  <button className="chip" onClick={() => onStyle(w.id)}>
+                  <button
+                    className="chip"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStyle(w.id);
+                    }}
+                  >
                     Style this
                   </button>
                 ) : (
-                  <button className="chip" onClick={() => markOwned(w)}>
+                  <button
+                    className="chip"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markOwned(w);
+                    }}
+                  >
                     I bought it
                   </button>
                 )}

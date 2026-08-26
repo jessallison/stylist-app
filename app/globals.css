@@ -3,12 +3,12 @@
      Colour stays out of the chrome so the clothes carry it.
      Cues: Bornstein (warm minimal), Chanel/Balenciaga (mono, uppercase,
      square), Gucci (product tiles on pale neutral). */
-  --bg: #f8f6f1;
-  --card: #fdfcf9;
-  --tile: #efece5;
+  --bg: #ffffff;
+  --card: #ffffff;
+  --tile: #f4f4f2;
   --ink: #141210;
   --muted: #6f6a60;
-  --line: #e2ddd2;
+  --line: #e5e4e0;
   --line-dark: #141210;
   --alert: #96502b;
   --alert-soft: #f3e7dc;
