@@ -21,9 +21,39 @@ export default function ProfileTab({
   const profile = data.styleProfile;
   const settings = data.settings;
   const wardrobe = data.wardrobe;
-  const heroPhoto = profile.length
+  const inspo = data.inspo || [];
+  const looks = data.looks || [];
+  const byId = Object.fromEntries(wardrobe.map((w) => [w.id, w]));
+
+  const latestWorn = profile.length
     ? [...profile].sort((a, b) => b.addedAt - a.addedAt)[0]
     : null;
+  const latestInspo = inspo.length
+    ? [...inspo].sort((a, b) => b.addedAt - a.addedAt)[0]
+    : null;
+  const latestWardrobe = wardrobe.length
+    ? [...wardrobe].sort((a, b) => b.addedAt - a.addedAt)[0]
+    : null;
+  const latestLook = looks.length
+    ? [...looks].sort((a, b) => b.savedAt - a.savedAt)[0]
+    : null;
+  // A saved look only carries its own photo when it was built around a
+  // freshly-photographed "NEW" piece - otherwise borrow the first item's
+  // wardrobe shot, so the tile always has something real to show.
+  const latestLookPhotoId =
+    latestLook?.anchorPhotoId ||
+    (latestLook?.item_ids || []).map((id) => byId[id]?.photoId).find(Boolean) ||
+    null;
+
+  // Four-up snapshot of what's freshest across the app - keeps the profile
+  // page feeling current without competing with the style identity text.
+  const snapshotTiles = [
+    { key: "worn", label: "Worn", photoId: latestWorn?.photoId, empty: "Log a worn outfit and it lands here" },
+    { key: "inspo", label: "Inspo", photoId: latestInspo?.photoId, empty: "Save some inspo and it lands here" },
+    { key: "wardrobe", label: "Wardrobe", photoId: latestWardrobe?.photoId, empty: "Add a piece and it lands here" },
+    { key: "look", label: "Saved look", photoId: latestLookPhotoId, empty: "Save a look and it lands here" },
+  ];
+
   const [context, setContext] = useState("cold");
   const [busy, setBusy] = useState(0);
   const [editingIdentity, setEditingIdentity] = useState(false);
@@ -113,15 +143,6 @@ export default function ProfileTab({
       </div>
       {!editingIdentity ? (
         <div className="profile-hero">
-          <div className="profile-hero-photo">
-            {heroPhoto ? (
-              <Thumb photoId={heroPhoto.photoId} className="thumb" />
-            ) : (
-              <div className="profile-hero-photo empty">
-                Add a worn-outfit photo below and it&rsquo;ll show here
-              </div>
-            )}
-          </div>
           <div className="profile-hero-text">
             <div className="three-words-mast">
               {settings.threeWords.map((t) => (
@@ -158,6 +179,19 @@ export default function ProfileTab({
                 Edit
               </button>
             </div>
+          </div>
+
+          <div className="profile-snapshot">
+            {snapshotTiles.map((t) => (
+              <div className="snapshot-tile" key={t.key}>
+                {t.photoId ? (
+                  <Thumb photoId={t.photoId} className="thumb" />
+                ) : (
+                  <div className="thumb snapshot-empty">{t.empty}</div>
+                )}
+                <div className="snapshot-label">{t.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       ) : null}
