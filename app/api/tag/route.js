@@ -67,6 +67,7 @@ Reply with ONLY a JSON object, no other text:
   "occasion": one of [${list(OCCASIONS)}] or "" if none obviously applies,
   "season": one of [${list(SEASONS)}],
   "colours": array of 1-3 dominant colours from [${list(COLOURS)}],
+  "tags": array of 0-3 from [${list(DEFAULT_SETTINGS.vocab)}] that clearly apply to the vibe of this image,
   "description": "one sentence on what the look or item is",
   "productName": "if type is product: a short natural name for the item, else empty string"
 }`;

@@ -66,6 +66,7 @@ export default function WardrobeTab({
   const [bulkTag, setBulkTag] = useState("");
   const [bulkColour, setBulkColour] = useState("");
   const [cats, setCats] = useState(new Set());
+  const [tagsSel, setTagsSel] = useState(new Set());
   const [brands, setBrands] = useState(new Set());
   const [cols, setCols] = useState(new Set());
   const [seas, setSeas] = useState(new Set());
@@ -471,11 +472,13 @@ export default function WardrobeTab({
     (w.tags || []).some((t) => norm(t).includes(q));
 
   function passes(w, skip) {
-    if (skip !== "brand" && brands.size && !brands.has(w.brand || "")) return false;
     if (skip !== "cat" && cats.size && !cats.has(w.category)) return false;
+    if (skip !== "tags" && tagsSel.size && !(w.tags || []).some((t) => tagsSel.has(t)))
+      return false;
     if (skip !== "col" && cols.size && !(w.colours || []).some((c) => cols.has(c)))
       return false;
     if (skip !== "sea" && seas.size && !seas.has(w.season)) return false;
+    if (skip !== "brand" && brands.size && !brands.has(w.brand || "")) return false;
     if (skip !== "status" && status.size && !status.has(w.status)) return false;
     if (skip !== "flags") {
       if (flags.has("needs") && !w.needsStyling) return false;
@@ -495,7 +498,7 @@ export default function WardrobeTab({
     .sort((a, b) => a.name.localeCompare(b.name));
   const ownedCount = wardrobe.filter((w) => w.status === "owned").length;
   const activeCount =
-    cats.size + brands.size + cols.size + seas.size + status.size + flags.size;
+    cats.size + tagsSel.size + brands.size + cols.size + seas.size + status.size + flags.size;
   // Brand facet is derived from whatever's been entered - no maintained list.
   const allBrands = [...new Set(wardrobe.map((w) => w.brand).filter(Boolean))].sort();
 
@@ -519,11 +522,40 @@ export default function WardrobeTab({
     (w) => w.status === "owned" && w.fitStatus !== "not_current"
   );
 
+  // One-tap category filter, same pattern as Inspo's type chips: only
+  // categories actually in use, counts against the whole wardrobe (not
+  // narrowed by other active filters or search).
+  const categoryCounts = CATEGORIES.map((c) => [
+    c,
+    wardrobe.filter((w) => w.category === c).length,
+  ]).filter(([, n]) => n > 0);
+
   return (
     <div>
       <div className="count">
         {ownedCount} pieces owned · {wardrobe.length - ownedCount} wanted
       </div>
+      {categoryCounts.length > 1 && (
+        <div className="chip-pick" style={{ marginBottom: 12 }}>
+          <button
+            className={`chip ${cats.size === 0 ? "on" : ""}`}
+            onClick={() => setCats(new Set())}
+          >
+            All
+          </button>
+          {categoryCounts.map(([c, n]) => (
+            <button
+              key={c}
+              className={`chip ${cats.size === 1 && cats.has(c) ? "on" : ""}`}
+              onClick={() =>
+                setCats(cats.size === 1 && cats.has(c) ? new Set() : new Set([c]))
+              }
+            >
+              {c} ({n})
+            </button>
+          ))}
+        </div>
+      )}
       <div className="toolbar">
         <input
           placeholder="Search the wardrobe…"
@@ -746,12 +778,14 @@ export default function WardrobeTab({
             selected={cats}
             onToggle={(v) => toggleIn(cats, v, setCats)}
           />
-          {allBrands.length > 0 && (
+          {vocab.length > 0 && (
             <FilterGroup
-              title="Brand"
-              options={countsFor("brand", allBrands.map((b) => [b, b]), (w, v) => w.brand === v)}
-              selected={brands}
-              onToggle={(v) => toggleIn(brands, v, setBrands)}
+              title="Tags"
+              options={countsFor("tags", vocab.map((t) => [t, t]), (w, v) =>
+                (w.tags || []).includes(v)
+              )}
+              selected={tagsSel}
+              onToggle={(v) => toggleIn(tagsSel, v, setTagsSel)}
             />
           )}
           <FilterGroup
@@ -768,6 +802,14 @@ export default function WardrobeTab({
             selected={seas}
             onToggle={(v) => toggleIn(seas, v, setSeas)}
           />
+          {allBrands.length > 0 && (
+            <FilterGroup
+              title="Brand"
+              options={countsFor("brand", allBrands.map((b) => [b, b]), (w, v) => w.brand === v)}
+              selected={brands}
+              onToggle={(v) => toggleIn(brands, v, setBrands)}
+            />
+          )}
           <FilterGroup
             title="Status"
             options={countsFor(

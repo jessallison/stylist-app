@@ -8,6 +8,7 @@ import {
   INSPO_TYPES,
 } from "../lib/style-identity";
 import {
+  norm,
   newId,
   toggleIn,
   ChipPick,
@@ -34,11 +35,15 @@ export default function InspoTab({
   setTileSize,
 }) {
   const inspo = data.inspo;
+  const vocab = data.settings.vocab || [];
+  const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(0); // uploads in flight
   const [showFilters, setShowFilters] = useState(false);
   const [types, setTypes] = useState(new Set());
+  const [tagsSel, setTagsSel] = useState(new Set());
+  const [cols, setCols] = useState(new Set());
   const [occs, setOccs] = useState(new Set());
   const [seas, setSeas] = useState(new Set());
 
@@ -88,6 +93,7 @@ export default function InspoTab({
         occasion: OCCASIONS.includes(tags.occasion) ? tags.occasion : "",
         season: SEASONS.includes(tags.season) ? tags.season : "",
         colours: (tags.colours || []).filter((c) => COLOURS.includes(c)),
+        tags: (tags.tags || []).filter((t) => vocab.includes(t)),
         notes: tags.description || "",
         productName: tags.productName || "",
         addedAt: Date.now(),
@@ -209,6 +215,15 @@ export default function InspoTab({
           />
         </div>
         <div>
+          <label>Style tags</label>
+          <ChipPick
+            options={vocab}
+            value={form.tags || []}
+            multi
+            onChange={(v) => setForm({ ...form, tags: v })}
+          />
+        </div>
+        <div>
           <label>Notes</label>
           <input
             value={form.notes || ""}
@@ -237,18 +252,34 @@ export default function InspoTab({
 
   // --- list -----------------------------------------------------------------
 
+  const q = norm(search);
+  const inSearch = (i) =>
+    !q ||
+    norm(i.notes).includes(q) ||
+    norm(i.source).includes(q) ||
+    norm(i.productName).includes(q) ||
+    norm(i.occasion).includes(q) ||
+    norm(i.season).includes(q) ||
+    (i.colours || []).some((c) => norm(c).includes(q)) ||
+    (i.tags || []).some((t) => norm(t).includes(q));
+
   function passes(i, skip) {
     if (skip !== "type" && types.size && !types.has(i.type)) return false;
-    if (skip !== "occ" && occs.size && !occs.has(i.occasion)) return false;
+    if (skip !== "tags" && tagsSel.size && !(i.tags || []).some((t) => tagsSel.has(t)))
+      return false;
+    if (skip !== "col" && cols.size && !(i.colours || []).some((c) => cols.has(c)))
+      return false;
     if (skip !== "sea" && seas.size && !seas.has(i.season)) return false;
+    if (skip !== "occ" && occs.size && !occs.has(i.occasion)) return false;
     return true;
   }
+  const base = inspo.filter(inSearch);
   const countsFor = (group, values, match) => {
-    const pool = inspo.filter((i) => passes(i, group));
+    const pool = base.filter((i) => passes(i, group));
     return values.map((v) => [v[0], v[1], pool.filter((i) => match(i, v[0])).length]);
   };
-  const shown = inspo.filter((i) => passes(i)).sort((a, b) => b.addedAt - a.addedAt);
-  const activeCount = types.size + occs.size + seas.size;
+  const shown = base.filter((i) => passes(i)).sort((a, b) => b.addedAt - a.addedAt);
+  const activeCount = types.size + tagsSel.size + cols.size + seas.size + occs.size;
 
   return (
     <div>
@@ -280,6 +311,11 @@ export default function InspoTab({
         </div>
       )}
       <div className="toolbar">
+        <input
+          placeholder="Search inspo…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <button
           className={`btn ghost ${activeCount ? "has-filters" : ""}`}
           onClick={() => setShowFilters(!showFilters)}
@@ -303,17 +339,35 @@ export default function InspoTab({
             selected={types}
             onToggle={(v) => toggleIn(types, v, setTypes)}
           />
+          {vocab.length > 0 && (
+            <FilterGroup
+              title="Tags"
+              options={countsFor("tags", vocab.map((t) => [t, t]), (i, v) =>
+                (i.tags || []).includes(v)
+              )}
+              selected={tagsSel}
+              onToggle={(v) => toggleIn(tagsSel, v, setTagsSel)}
+            />
+          )}
           <FilterGroup
-            title="Occasion"
-            options={countsFor("occ", OCCASIONS.map((o) => [o, o]), (i, v) => i.occasion === v)}
-            selected={occs}
-            onToggle={(v) => toggleIn(occs, v, setOccs)}
+            title="Colour"
+            options={countsFor("col", COLOURS.map((c) => [c, c]), (i, v) =>
+              (i.colours || []).includes(v)
+            )}
+            selected={cols}
+            onToggle={(v) => toggleIn(cols, v, setCols)}
           />
           <FilterGroup
             title="Season"
             options={countsFor("sea", SEASONS.map((s) => [s, s]), (i, v) => i.season === v)}
             selected={seas}
             onToggle={(v) => toggleIn(seas, v, setSeas)}
+          />
+          <FilterGroup
+            title="Occasion"
+            options={countsFor("occ", OCCASIONS.map((o) => [o, o]), (i, v) => i.occasion === v)}
+            selected={occs}
+            onToggle={(v) => toggleIn(occs, v, setOccs)}
           />
         </div>
       )}
@@ -338,6 +392,11 @@ export default function InspoTab({
                 <span className={`badge type-${i.type}`}>{TYPE_LABEL[i.type]}</span>
                 {i.occasion && <span className="badge soft">{i.occasion}</span>}
                 {i.season && <span className="badge soft">{i.season}</span>}
+                {(i.tags || []).map((t) => (
+                  <span key={t} className="badge soft">
+                    {t}
+                  </span>
+                ))}
               </div>
               {i.notes && <div className="meta">{i.notes}</div>}
               <div className="card-actions">
@@ -367,6 +426,9 @@ export default function InspoTab({
           </div>
         ))}
       </div>
+      {q && shown.length === 0 && inspo.length > 0 && (
+        <div className="empty">Nothing matches &ldquo;{search}&rdquo;.</div>
+      )}
     </div>
   );
 }
