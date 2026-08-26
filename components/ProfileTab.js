@@ -1,8 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PROFILE_CONTEXTS } from "../lib/style-identity";
-import { newId, PhotoButton, Thumb, TileToggle, uploadImage, deleteImage } from "./shared";
+import {
+  newId,
+  PhotoButton,
+  Thumb,
+  TileToggle,
+  uploadImage,
+  deleteImage,
+  hashDataUrl,
+  groupDuplicates,
+  backfillHashes,
+  DuplicatesPanel,
+} from "./shared";
 
 // Style profile: worn-outfit photos exported by hand from Stylebook's
 // "Cold Weather" / "Warm Weather" / "Fancy" folders, same three groupings -
@@ -11,6 +22,7 @@ import { newId, PhotoButton, Thumb, TileToggle, uploadImage, deleteImage } from 
 export default function ProfileTab({
   data,
   save,
+  setData,
   unlocked,
   needAuth,
   adminKey,
@@ -58,6 +70,7 @@ export default function ProfileTab({
   const [busy, setBusy] = useState(0);
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [idForm, setIdForm] = useState(null);
+  const [showDuplicates, setShowDuplicates] = useState(false);
   // Tapping a vocabulary word reveals the owned pieces tagged with it - turns
   // the word list from a description into something you can actually see.
   const [vocabFocus, setVocabFocus] = useState(null);
@@ -66,6 +79,18 @@ export default function ProfileTab({
         .filter((w) => w.status === "owned" && (w.tags || []).includes(vocabFocus))
         .sort((a, b) => b.addedAt - a.addedAt)
     : [];
+
+  // One-time backfill so worn-outfit photos added before duplicate
+  // detection existed get a hash too, and show up in the panel below.
+  const backfillRan = useRef(false);
+  useEffect(() => {
+    if (backfillRan.current) return;
+    backfillRan.current = true;
+    backfillHashes("styleProfile", profile, setData, adminKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dupGroups = groupDuplicates(profile);
 
   function requireUnlock() {
     if (!unlocked) {
@@ -79,15 +104,24 @@ export default function ProfileTab({
     if (!requireUnlock()) return;
     setBusy((b) => b + 1);
     try {
+      // Hash before upload - an exact match against any worn-outfit photo
+      // already saved (in any folder) means this is very likely the same
+      // export added twice.
+      const hash = await hashDataUrl(dataUrl);
+      const dupOf = profile.find((p) => p.hash === hash);
       const photoId = newId("pp");
       const up = await uploadImage(adminKey, photoId, dataUrl);
       if (!up.ok) {
         flash(up.error);
         return;
       }
-      const item = { id: newId("p"), photoId, context, addedAt: Date.now() };
+      const item = { id: newId("p"), photoId, hash, context, addedAt: Date.now() };
       const ok = await save("styleProfile", (cur) => [...cur, item]);
-      if (!ok) deleteImage(adminKey, photoId);
+      if (!ok) {
+        deleteImage(adminKey, photoId);
+        return;
+      }
+      if (dupOf) flash("Saved - heads up, this looks identical to one already saved");
     } finally {
       setBusy((b) => b - 1);
     }
@@ -301,8 +335,33 @@ export default function ProfileTab({
           onError={flash}
           multiple
         />
+        <button
+          className={`btn ghost ${dupGroups.length ? "has-filters" : ""}`}
+          onClick={() => setShowDuplicates(!showDuplicates)}
+        >
+          Duplicates{dupGroups.length ? ` (${dupGroups.length})` : ""}
+        </button>
         <TileToggle size={tileSize} onChange={setTileSize} />
       </div>
+
+      {showDuplicates && (
+        <DuplicatesPanel
+          groups={dupGroups}
+          renderLabel={(p) => (
+            <>
+              {PROFILE_CONTEXTS.find(([v]) => v === p.context)?.[1] || p.context}
+              <span className="dup-sub">
+                {new Date(p.addedAt).toLocaleDateString("en-AU", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            </>
+          )}
+          onRemove={remove}
+        />
+      )}
       <div className={`grid ${tileSize === "compact" ? "compact" : ""}`}>
         {profile
           .filter((p) => p.context === context)

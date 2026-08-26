@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   SEASONS,
   OCCASIONS,
@@ -18,6 +18,10 @@ import {
   TileToggle,
   uploadImage,
   deleteImage,
+  hashDataUrl,
+  groupDuplicates,
+  backfillHashes,
+  DuplicatesPanel,
 } from "./shared";
 
 const TYPE_LABEL = Object.fromEntries(INSPO_TYPES);
@@ -25,6 +29,7 @@ const TYPE_LABEL = Object.fromEntries(INSPO_TYPES);
 export default function InspoTab({
   data,
   save,
+  setData,
   unlocked,
   needAuth,
   adminKey,
@@ -46,6 +51,19 @@ export default function InspoTab({
   const [cols, setCols] = useState(new Set());
   const [occs, setOccs] = useState(new Set());
   const [seas, setSeas] = useState(new Set());
+  const [showDuplicates, setShowDuplicates] = useState(false);
+
+  // One-time backfill so items added before duplicate detection existed get
+  // a hash too, and show up in the duplicates panel like anything new.
+  const backfillRan = useRef(false);
+  useEffect(() => {
+    if (backfillRan.current) return;
+    backfillRan.current = true;
+    backfillHashes("inspo", inspo, setData, adminKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dupGroups = groupDuplicates(inspo);
 
   function requireUnlock() {
     if (!unlocked) {
@@ -55,12 +73,25 @@ export default function InspoTab({
     return true;
   }
 
+  async function removeDupItem(item) {
+    if (!confirm("Remove this inspo image?")) return;
+    const ok = await save("inspo", inspo.filter((i) => i.id !== item.id));
+    if (ok) {
+      if (item.photoId) deleteImage(adminKey, item.photoId);
+      flash("Removed");
+    }
+  }
+
   // Upload → classify (Claude vision) → save, one image at a time so a batch
   // of screenshots can be dropped in together.
   async function addPhoto(dataUrl) {
     if (!requireUnlock()) return;
     setBusy((b) => b + 1);
     try {
+      // Hash before upload - an exact match against anything already saved
+      // means this is very likely the same screenshot added twice.
+      const hash = await hashDataUrl(dataUrl);
+      const dupOf = inspo.find((i) => i.hash === hash);
       const photoId = newId("ip");
       const up = await uploadImage(adminKey, photoId, dataUrl);
       if (!up.ok) {
@@ -86,6 +117,7 @@ export default function InspoTab({
       const item = {
         id: newId("i"),
         photoId,
+        hash,
         source: "",
         type: ["outfit", "flatlay", "product"].includes(tags.type)
           ? tags.type
@@ -105,7 +137,9 @@ export default function InspoTab({
         deleteImage(adminKey, photoId);
         return;
       }
-      if (item.type === "product") {
+      if (dupOf) {
+        flash("Saved - heads up, this looks identical to one already saved");
+      } else if (item.type === "product") {
         flash("Saved - looks like a product pin. Add it to the wardrobe as wanted?");
       }
     } finally {
@@ -322,6 +356,12 @@ export default function InspoTab({
         >
           Filters{activeCount ? ` (${activeCount})` : ""}
         </button>
+        <button
+          className={`btn ghost ${dupGroups.length ? "has-filters" : ""}`}
+          onClick={() => setShowDuplicates(!showDuplicates)}
+        >
+          Duplicates{dupGroups.length ? ` (${dupGroups.length})` : ""}
+        </button>
         <PhotoButton
           className="btn"
           label={busy ? `Adding… (${busy})` : "+ Add images"}
@@ -331,6 +371,25 @@ export default function InspoTab({
         />
         <TileToggle size={tileSize} onChange={setTileSize} />
       </div>
+
+      {showDuplicates && (
+        <DuplicatesPanel
+          groups={dupGroups}
+          renderLabel={(i) => (
+            <>
+              {TYPE_LABEL[i.type] || i.type}
+              <span className="dup-sub">
+                {new Date(i.addedAt).toLocaleDateString("en-AU", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            </>
+          )}
+          onRemove={removeDupItem}
+        />
+      )}
       {showFilters && (
         <div className="filter-panel">
           <FilterGroup

@@ -272,6 +272,9 @@ export default function Home() {
   const tabProps = {
     data,
     save,
+    // Direct state access for the rare call site that can't safely go
+    // through save() - see backfillHashes in shared.js for why.
+    setData,
     unlocked,
     needAuth: () => setShowLogin(true),
     adminKey,

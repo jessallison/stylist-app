@@ -224,3 +224,117 @@ export function deleteImage(adminKey, id) {
     headers: { "x-admin-key": adminKey || "" },
   }).catch(() => {});
 }
+
+// --- Duplicate detection ----------------------------------------------------
+// SHA-256 of an image's raw bytes. A genuine re-photograph of the same piece
+// never hashes the same as an earlier shot, so a match here is reliably an
+// accidental double-add (a double-tap, or re-adding an already-imported
+// export) rather than a stylistic judgement call - free, deterministic, no
+// AI call, no false positives.
+
+async function digestHex(bytes) {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export async function hashDataUrl(dataUrl) {
+  const base64 = (dataUrl.split(",")[1] || "").trim();
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return digestHex(bytes);
+}
+
+export async function hashBuffer(buffer) {
+  return digestHex(new Uint8Array(buffer));
+}
+
+// Groups of 2+ items sharing an image hash - the "possible duplicates" view
+// for a tab. Items that predate this feature and haven't been backfilled
+// yet (no `hash`) are simply excluded until they are.
+export function groupDuplicates(items) {
+  const byHash = new Map();
+  for (const item of items) {
+    if (!item.hash) continue;
+    if (!byHash.has(item.hash)) byHash.set(item.hash, []);
+    byHash.get(item.hash).push(item);
+  }
+  return [...byHash.values()].filter((g) => g.length > 1);
+}
+
+// One-time backfill for items saved before hashing existed. Fetches each
+// missing photo once and writes all the new hashes back in a single save.
+//
+// Deliberately bypasses the shared save() helper: every tab stays mounted
+// at once (display:none, not unmounted), so all three tabs' backfills fire
+// together on first load - and save() computes its POST body *inside* a
+// setData updater, which React doesn't guarantee runs before the very next
+// line reads it back out. A single call usually gets away with it; several
+// landing close together is exactly what surfaced the same bug in the
+// outfit-feedback recorder (see StyleTab). The fix there was the same as
+// here: compute the full next value as a plain value first, then setData
+// and POST from that - nothing left for timing to race.
+export async function backfillHashes(type, items, setData, adminKey) {
+  const missing = items.filter((it) => it.photoId && !it.hash);
+  if (!missing.length) return;
+  const hashes = {};
+  await Promise.all(
+    missing.map(async (it) => {
+      try {
+        const res = await fetch(`/api/image/${it.photoId}`, {
+          headers: { "x-admin-key": adminKey || "" },
+        });
+        if (!res.ok) return;
+        hashes[it.id] = await hashBuffer(await res.arrayBuffer());
+      } catch {
+        // Best-effort - picked up again on the next load.
+      }
+    })
+  );
+  if (!Object.keys(hashes).length) return;
+  const next = items.map((it) => (hashes[it.id] ? { ...it, hash: hashes[it.id] } : it));
+  setData((d) => ({ ...d, [type]: next }));
+  try {
+    await fetch("/api/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
+      body: JSON.stringify({ type, data: next }),
+    });
+  } catch {
+    // Best-effort - the local hashes still landed, and this is picked up
+    // again next load if the write itself didn't make it.
+  }
+}
+
+// Shared "possible duplicates" review panel - same shape across Wardrobe,
+// Inspo and worn outfits, since all three are photo-driven lists under the
+// hood. `renderLabel` supplies the per-type caption, `onRemove` the
+// per-type delete (which also knows how to clean up its own photo).
+export function DuplicatesPanel({ groups, renderLabel, onRemove }) {
+  if (!groups.length) {
+    return (
+      <div className="empty">
+        No duplicates found - nothing shares an identical photo.
+      </div>
+    );
+  }
+  return (
+    <div className="dup-panel">
+      {groups.map((g, gi) => (
+        <div className="dup-group" key={gi}>
+          {g.map((item) => (
+            <div className="dup-item" key={item.id}>
+              <Thumb photoId={item.photoId} className="thumb sq" />
+              <div className="dup-meta">{renderLabel(item)}</div>
+              <button type="button" className="chip" onClick={() => onRemove(item)}>
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}

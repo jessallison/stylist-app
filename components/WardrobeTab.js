@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   CATEGORIES,
   SEASONS,
@@ -18,6 +18,10 @@ import {
   TileToggle,
   uploadImage,
   deleteImage,
+  hashDataUrl,
+  groupDuplicates,
+  backfillHashes,
+  DuplicatesPanel,
 } from "./shared";
 import CompositionChart from "./CompositionChart";
 
@@ -38,6 +42,7 @@ const EMPTY_FORM = {
 export default function WardrobeTab({
   data,
   save,
+  setData,
   unlocked,
   needAuth,
   adminKey,
@@ -72,6 +77,21 @@ export default function WardrobeTab({
   const [seas, setSeas] = useState(new Set());
   const [status, setStatus] = useState(new Set());
   const [flags, setFlags] = useState(new Set());
+  const [photoHash, setPhotoHash] = useState(null);
+  const [dupMatch, setDupMatch] = useState(null);
+  const [showDuplicates, setShowDuplicates] = useState(false);
+
+  // One-time backfill so items added before duplicate detection existed get
+  // a hash too, and show up in the duplicates panel like anything new.
+  const backfillRan = useRef(false);
+  useEffect(() => {
+    if (backfillRan.current) return;
+    backfillRan.current = true;
+    backfillHashes("wardrobe", wardrobe, setData, adminKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dupGroups = groupDuplicates(wardrobe);
 
   function requireUnlock() {
     if (!unlocked) {
@@ -79,6 +99,15 @@ export default function WardrobeTab({
       return false;
     }
     return true;
+  }
+
+  async function removeDupItem(item) {
+    if (!confirm(`Remove "${item.name}"?`)) return;
+    const ok = await save("wardrobe", wardrobe.filter((w) => w.id !== item.id));
+    if (ok) {
+      if (item.photoId) deleteImage(adminKey, item.photoId);
+      flash("Removed");
+    }
   }
 
   // --- add / edit -----------------------------------------------------------
@@ -115,6 +144,11 @@ export default function WardrobeTab({
     setForm(EMPTY_FORM);
     setPhoto(rawDataUrl);
     setEditingId("new");
+    // Hash the untouched photo, before background removal can change its
+    // bytes - that's what makes an exact match a reliable duplicate signal.
+    const h = await hashDataUrl(rawDataUrl);
+    setPhotoHash(h);
+    setDupMatch(wardrobe.find((w) => w.hash === h) || null);
     const dataUrl = await cleanBackground(rawDataUrl);
     setPhoto(dataUrl);
     if (!data.ai) return;
@@ -165,6 +199,8 @@ export default function WardrobeTab({
       notes: item.notes || "",
     });
     setPhoto(null);
+    setPhotoHash(null);
+    setDupMatch(null);
     setEditingId(item.id);
   }
 
@@ -193,6 +229,7 @@ export default function WardrobeTab({
       name,
       brand: form.brand.trim(),
       photoId,
+      hash: photo ? photoHash : original?.hash || null,
       category: form.category,
       colours: form.colours,
       season: form.season,
@@ -218,6 +255,8 @@ export default function WardrobeTab({
     if (uploadedNew && original?.photoId) deleteImage(adminKey, original.photoId);
     setEditingId(null);
     setPhoto(null);
+    setPhotoHash(null);
+    setDupMatch(null);
     // wanted -> owned means "I bought it": offer styling ideas straight away.
     if (original?.status === "wanted" && item.status === "owned") {
       flash("Bought! Let's style it");
@@ -313,13 +352,26 @@ export default function WardrobeTab({
             <PhotoButton
               className="btn ghost"
               label={photo || original?.photoId ? "Replace photo" : "Add photo"}
-              onPhoto={async (raw) => setPhoto(await cleanBackground(raw))}
+              onPhoto={async (raw) => {
+                const h = await hashDataUrl(raw);
+                setPhotoHash(h);
+                setDupMatch(wardrobe.find((w) => w.hash === h && w.id !== editingId) || null);
+                setPhoto(await cleanBackground(raw));
+              }}
               onError={flash}
             />
             {bgBusy && <div className="count" style={{ marginTop: 8 }}>Removing background…</div>}
             {tagging && <div className="count" style={{ marginTop: 8 }}>Suggesting tags…</div>}
           </div>
         </div>
+        {dupMatch && (
+          <div className="dup-warning">
+            Looks identical to <b>{dupMatch.name}</b>, already in your wardrobe.
+            <button type="button" className="chip" onClick={() => setDupMatch(null)}>
+              Dismiss
+            </button>
+          </div>
+        )}
         <div className="cols name-brand">
           <div>
             <label>Name</label>
@@ -441,6 +493,8 @@ export default function WardrobeTab({
             onClick={() => {
               setEditingId(null);
               setPhoto(null);
+              setPhotoHash(null);
+              setDupMatch(null);
             }}
           >
             Cancel
@@ -582,6 +636,12 @@ export default function WardrobeTab({
           Composition
         </button>
         <button
+          className={`btn ghost ${dupGroups.length ? "has-filters" : ""}`}
+          onClick={() => setShowDuplicates(!showDuplicates)}
+        >
+          Duplicates{dupGroups.length ? ` (${dupGroups.length})` : ""}
+        </button>
+        <button
           className={`btn ghost ${bulkMode ? "has-filters" : ""}`}
           onClick={() => {
             if (bulkMode) return exitBulk();
@@ -601,6 +661,22 @@ export default function WardrobeTab({
       </div>
 
       {showComposition && <CompositionChart items={wearable} />}
+
+      {showDuplicates && (
+        <DuplicatesPanel
+          groups={dupGroups}
+          renderLabel={(w) => (
+            <>
+              {w.name}
+              <span className="dup-sub">
+                {w.brand ? `${w.brand} · ` : ""}
+                {w.category}
+              </span>
+            </>
+          )}
+          onRemove={removeDupItem}
+        />
+      )}
 
       {bulkMode && (
         <div className="bulk-panel">

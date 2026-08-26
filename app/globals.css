@@ -582,6 +582,61 @@ header.top {
   font-size: 0.74rem;
 }
 
+/* --- Duplicate detection ----------------------------------------------------
+   Exact image-hash matches only (see hashDataUrl in shared.js) - a genuine
+   re-photograph never hashes the same as an earlier shot, so a match here
+   is reliably an accidental double-add, not a judgement call. --- */
+
+.dup-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--tile);
+  border: 1px solid var(--line);
+  padding: 10px 14px;
+  margin: 10px 0 4px;
+  font-size: 0.8rem;
+  color: var(--ink);
+}
+
+.dup-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  padding: 4px 20px;
+  margin-bottom: 20px;
+}
+
+.dup-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.dup-group:last-child {
+  border-bottom: none;
+}
+
+.dup-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dup-meta {
+  font-size: 0.82rem;
+  color: var(--ink);
+  max-width: 160px;
+}
+
+.dup-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin-top: 2px;
+}
+
 /* --- Cards & product grid --------------------------------------------------- */
 
 .card {
