@@ -23,6 +23,31 @@ function itemLine(w) {
   return `- ${w.id}: ${w.name} [${bits.join(", ")}]${w.notes ? ` - ${w.notes}` : ""}`;
 }
 
+// Feedback is stored per-outfit ("not my thing" / "love this" on the whole
+// combination), but an outfit rarely repeats verbatim from a fresh AI call -
+// so blocking the exact combo again would almost never fire. What does
+// recur is a PAIRING of two pieces, so that's what gets mined out and fed
+// back to the model: the most recent feedback first, deduped, capped, and
+// limited to pieces still actually in the wearable pool (a piece that's
+// been sold or gone out of rotation can't reappear anyway).
+function deriveFeedbackPairs(feedback, verdict, validIds, cap) {
+  const seen = new Map();
+  const entries = (feedback || [])
+    .filter((f) => f.verdict === verdict)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  for (const f of entries) {
+    const ids = (f.itemIds || []).filter((id) => validIds.has(id));
+    for (let i = 0; i < ids.length && seen.size < cap; i++) {
+      for (let j = i + 1; j < ids.length && seen.size < cap; j++) {
+        const key = [ids[i], ids[j]].sort().join("|");
+        if (!seen.has(key)) seen.set(key, [ids[i], ids[j]]);
+      }
+    }
+    if (seen.size >= cap) break;
+  }
+  return [...seen.values()];
+}
+
 function identityText(s) {
   return `THREE WORDS (every outfit must honour at least two):
 ${s.threeWords.map((t) => `- ${t.word}: ${t.meaning}`).join("\n")}
@@ -47,21 +72,30 @@ export async function POST(request) {
   let body;
   try {
     body = await request.json();
-  } catch {
-    return Response.json({ error: "Bad request" }, { status: 400 });
+  } catch (e) {
+    console.error("suggest: couldn't parse request body", e);
+    return Response.json(
+      { error: "That request didn't come through - try again (a flaky connection can cut it off)" },
+      { status: 400 }
+    );
   }
   const { flow, filters = {} } = body || {};
   if (!["A", "B", "C"].includes(flow)) {
-    return Response.json({ error: "Bad request" }, { status: 400 });
+    console.error("suggest: bad flow value", flow);
+    return Response.json(
+      { error: "Something's wrong with that request - refresh the page and try again" },
+      { status: 400 }
+    );
   }
 
-  let wardrobe, inspo, styleProfile, settings;
+  let wardrobe, inspo, styleProfile, settings, feedback;
   try {
-    [wardrobe, inspo, styleProfile, settings] = await Promise.all([
+    [wardrobe, inspo, styleProfile, settings, feedback] = await Promise.all([
       getData("wardrobe"),
       getData("inspo"),
       getData("styleProfile"),
       getData("settings"),
+      getData("feedback"),
     ]);
   } catch (e) {
     console.error("suggest data error", e);
@@ -90,6 +124,15 @@ export async function POST(request) {
   const pool = anchor
     ? wearable.filter((w) => w.id !== anchor.id)
     : wearable;
+
+  // Pairs mined from past "not my thing" / "love this" feedback - see
+  // deriveFeedbackPairs above for why this is pair-level, not outfit-level.
+  const wearableIds = new Set(wearable.map((w) => w.id));
+  const nameOf = (id) => wearable.find((w) => w.id === id)?.name || id;
+  const avoidPairs = deriveFeedbackPairs(feedback, "not_for_me", wearableIds, 15);
+  const lovedPairs = deriveFeedbackPairs(feedback, "loved", wearableIds, 15);
+  const avoidLines = avoidPairs.map(([a, b]) => `- ${nameOf(a)} + ${nameOf(b)}`);
+  const lovedLines = lovedPairs.map(([a, b]) => `- ${nameOf(a)} + ${nameOf(b)}`);
 
   if (pool.length < 2) {
     return Response.json(
@@ -170,6 +213,8 @@ RULES:
 - Where an outfit follows a CONFIRMED REGULAR, say which in "formula".
 - Gaps: if a look genuinely needs something she doesn't own, check the WANTED list first - if a wanted item fits, reference it by id ("you've already got your eye on this") instead of a generic suggestion. Only note real gaps, not nice-to-haves.
 - Voice: warm, specific, stylist-to-friend. British English. No filler.
+${avoidLines.length ? `- She's said no before to these specific pairings - avoid combining them in the same outfit unless there's genuinely no other way to build a good look:\n${avoidLines.join("\n")}` : ""}
+${lovedLines.length ? `- She's responded well to these pairings before - it's fine to lean into the spirit of them where it genuinely fits, not force them in:\n${lovedLines.join("\n")}` : ""}
 
 Reply with ONLY a JSON object:
 {

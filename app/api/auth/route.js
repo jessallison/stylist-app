@@ -6,8 +6,12 @@ export async function POST(request) {
   let body;
   try {
     body = await request.json();
-  } catch {
-    return Response.json({ error: "Bad request" }, { status: 400 });
+  } catch (e) {
+    console.error("auth: couldn't parse request body", e);
+    return Response.json(
+      { error: "Login didn't come through - try again" },
+      { status: 400 }
+    );
   }
   const { password, logout } = body || {};
   const pw = process.env.ADMIN_PASSWORD;

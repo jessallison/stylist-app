@@ -1185,6 +1185,39 @@ header.top {
   line-height: 1.5;
 }
 
+.vocab-chips {
+  margin-top: 6px;
+}
+
+/* Tapping a vocabulary chip drops this strip in below the masthead - real
+   wardrobe photos standing in for the word, not just a description of it. */
+.signature-strip {
+  margin: 4px 0 28px;
+}
+
+.signature-label {
+  font-size: 0.66rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  margin-bottom: 10px;
+}
+
+.signature-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.signature-row .thumb.sq {
+  flex-shrink: 0;
+}
+
+.signature-empty {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 /* --- Shared ----------------------------------------------------------------- */
 
 .empty {
@@ -1342,6 +1375,12 @@ header.top {
   }
   .flow-btn:last-child {
     border-bottom: none;
+  }
+  /* Nav wraps to two lines here - Lock ends up sharing a row with whichever
+     tab wraps last (Profile) at only 14px apart, reading as if it's part of
+     the tab group. Push it to the far right of its row instead. */
+  .top-nav .lock-btn {
+    margin-left: auto;
   }
   /* 16px inputs stop iOS Safari auto-zooming on focus. */
   input,

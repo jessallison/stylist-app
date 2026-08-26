@@ -30,13 +30,28 @@ export async function POST(request) {
   let body;
   try {
     body = await request.json();
-  } catch {
-    return Response.json({ error: "Bad request" }, { status: 400 });
+  } catch (e) {
+    console.error("tag: couldn't parse request body", e);
+    return Response.json(
+      { error: "That photo didn't come through - try again (a flaky connection can cut off the upload)" },
+      { status: 400 }
+    );
   }
   const { image, kind } = body || {};
   const img = imageBlock(image);
-  if (!img || !["wardrobe", "inspo"].includes(kind)) {
-    return Response.json({ error: "Bad request" }, { status: 400 });
+  if (!img) {
+    console.error("tag: unreadable image", { imagePrefix: typeof image === "string" ? image.slice(0, 20) : typeof image });
+    return Response.json(
+      { error: "Couldn't read that photo for tagging - try picking it again" },
+      { status: 400 }
+    );
+  }
+  if (!["wardrobe", "inspo"].includes(kind)) {
+    console.error("tag: bad kind value", kind);
+    return Response.json(
+      { error: "Something's wrong with that request - refresh the page and try again" },
+      { status: 400 }
+    );
   }
 
   const prompt =

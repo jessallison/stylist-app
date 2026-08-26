@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PROFILE_CONTEXTS } from "../lib/style-identity";
-import { newId, PhotoButton, Thumb, uploadImage, deleteImage } from "./shared";
+import { newId, PhotoButton, Thumb, TileToggle, uploadImage, deleteImage } from "./shared";
 
 // Style profile: worn-outfit photos exported by hand from Stylebook's
 // "Cold Weather" / "Warm Weather" / "Fancy" folders, same three groupings -
@@ -15,9 +15,12 @@ export default function ProfileTab({
   needAuth,
   adminKey,
   flash,
+  tileSize,
+  setTileSize,
 }) {
   const profile = data.styleProfile;
   const settings = data.settings;
+  const wardrobe = data.wardrobe;
   const heroPhoto = profile.length
     ? [...profile].sort((a, b) => b.addedAt - a.addedAt)[0]
     : null;
@@ -25,6 +28,14 @@ export default function ProfileTab({
   const [busy, setBusy] = useState(0);
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [idForm, setIdForm] = useState(null);
+  // Tapping a vocabulary word reveals the owned pieces tagged with it - turns
+  // the word list from a description into something you can actually see.
+  const [vocabFocus, setVocabFocus] = useState(null);
+  const signaturePieces = vocabFocus
+    ? wardrobe
+        .filter((w) => w.status === "owned" && (w.tags || []).includes(vocabFocus))
+        .sort((a, b) => b.addedAt - a.addedAt)
+    : [];
 
   function requireUnlock() {
     if (!unlocked) {
@@ -121,7 +132,18 @@ export default function ProfileTab({
               ))}
             </div>
             <div className="meta" style={{ marginTop: 10 }}>
-              <b>Vocabulary:</b> {settings.vocab.join(", ")}
+              <b>Vocabulary:</b>
+            </div>
+            <div className="chip-pick vocab-chips">
+              {settings.vocab.map((v) => (
+                <button
+                  key={v}
+                  className={`chip ${vocabFocus === v ? "sel" : ""}`}
+                  onClick={() => setVocabFocus(vocabFocus === v ? null : v)}
+                >
+                  {v}
+                </button>
+              ))}
             </div>
             <div className="meta" style={{ marginTop: 8 }}>
               <b>Regulars:</b>
@@ -138,7 +160,33 @@ export default function ProfileTab({
             </div>
           </div>
         </div>
-      ) : (
+      ) : null}
+
+      {!editingIdentity && vocabFocus && (
+        <div className="signature-strip">
+          <div className="signature-label">
+            Pieces tagged &lsquo;{vocabFocus}&rsquo;
+          </div>
+          <div className="signature-row">
+            {signaturePieces.length ? (
+              signaturePieces.map((w) => (
+                <Thumb
+                  key={w.id}
+                  photoId={w.photoId}
+                  className="thumb sq"
+                  alt={w.name}
+                />
+              ))
+            ) : (
+              <div className="signature-empty">
+                Nothing in the wardrobe is tagged &lsquo;{vocabFocus}&rsquo; yet.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {editingIdentity && (
         <form className="form" onSubmit={saveIdentity}>
           <label>Three words</label>
           {idForm.threeWords.map((t, i) => (
@@ -219,8 +267,9 @@ export default function ProfileTab({
           onError={flash}
           multiple
         />
+        <TileToggle size={tileSize} onChange={setTileSize} />
       </div>
-      <div className="grid">
+      <div className={`grid ${tileSize === "compact" ? "compact" : ""}`}>
         {profile
           .filter((p) => p.context === context)
           .sort((a, b) => b.addedAt - a.addedAt)

@@ -16,12 +16,20 @@ export async function POST(request) {
   let body;
   try {
     body = await request.json();
-  } catch {
-    return Response.json({ error: "Bad request" }, { status: 400 });
+  } catch (e) {
+    console.error("bg-remove: couldn't parse request body", e);
+    return Response.json(
+      { error: "That photo didn't come through - try again (a flaky connection can cut off the upload)" },
+      { status: 400 }
+    );
   }
   const { dataUrl } = body || {};
   if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
-    return Response.json({ error: "Bad request" }, { status: 400 });
+    console.error("bg-remove: bad dataUrl", { dataUrlPrefix: typeof dataUrl === "string" ? dataUrl.slice(0, 20) : typeof dataUrl });
+    return Response.json(
+      { error: "Couldn't read that photo - try picking it again" },
+      { status: 400 }
+    );
   }
   try {
     const cleaned = await removeBackground(dataUrl);

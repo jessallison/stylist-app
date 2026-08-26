@@ -33,7 +33,16 @@ export default function StyleTab({
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  // Indices dismissed via "Not my thing" - hidden from view immediately,
+  // reset whenever a fresh set of suggestions comes back.
+  const [dismissed, setDismissed] = useState(new Set());
   const ranRequest = useRef(null);
+  // Accumulates feedback entries recorded this session, seeded from the
+  // loaded data. Not React state - nothing reads it back for display - but
+  // it needs to be readable and updatable synchronously, immediately, so
+  // two feedback clicks close together each see the other's entry rather
+  // than racing to overwrite one another.
+  const feedbackRef = useRef(data.feedback || []);
 
   // Manual builder (flow M): no AI, just a picker.
   const [manualIds, setManualIds] = useState([]);
@@ -72,6 +81,7 @@ export default function StyleTab({
     setBusy(true);
     setError(null);
     setResult(null);
+    setDismissed(new Set());
     try {
       const res = await fetch("/api/suggest", {
         method: "POST",
@@ -141,6 +151,49 @@ export default function StyleTab({
     const ok = await save("looks", (cur) => [...(cur || []), look]);
     if (ok) flash(`"${o.title}" saved to your looks`);
     else if (anchorPhotoId) deleteImage(adminKey, anchorPhotoId);
+  }
+
+  // Feedback on a fresh suggestion. Stored per-outfit but mined pair-by-pair
+  // by the suggestion engine (see deriveFeedbackPairs in app/api/suggest) -
+  // an exact combo rarely repeats verbatim, but a pairing of two pieces
+  // does, so that's the signal that actually steers future suggestions.
+  // Posted directly rather than through the shared save() helper: this can
+  // fire right alongside another state update (dismissing the card), and
+  // save() computes its payload inside a setState updater that isn't
+  // guaranteed to run before it's read back in that situation. Nothing
+  // reads data.feedback back in the UI, so a plain best-effort POST -
+  // computed from the current props, not from save()'s deferred read -
+  // sidesteps that rather than risk it losing an entry.
+  async function recordFeedback(o, verdict) {
+    const entry = {
+      id: newId("fb"),
+      verdict,
+      itemIds: o.item_ids.filter((id) => id !== "NEW"),
+      flow: result?.flow,
+      createdAt: Date.now(),
+    };
+    const next = [...feedbackRef.current, entry];
+    feedbackRef.current = next;
+    try {
+      await fetch("/api/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
+        body: JSON.stringify({ type: "feedback", data: next }),
+      });
+    } catch (e) {
+      console.error("feedback save failed", e);
+    }
+  }
+
+  function notMyThing(o, idx) {
+    setDismissed((cur) => new Set(cur).add(idx));
+    recordFeedback(o, "not_for_me");
+    flash("Noted - I'll steer away from that pairing");
+  }
+
+  function loveThis(o) {
+    recordFeedback(o, "loved");
+    flash("Noted - more like this");
   }
 
   function toggleManual(id) {
@@ -360,19 +413,34 @@ export default function StyleTab({
       {result && (
         <div className="results">
           {result.overall_note && <div className="stylist-note">{result.overall_note}</div>}
-          {result.outfits.map((o, idx) => (
-            <OutfitCard
-              key={idx}
-              o={o}
-              byId={byId}
-              newThumb={{ dataUrl: result.image }}
-              actions={
-                <button className="chip" onClick={() => saveLook(o)}>
-                  Save this look
-                </button>
-              }
-            />
-          ))}
+          {result.outfits.map((o, idx) =>
+            dismissed.has(idx) ? null : (
+              <OutfitCard
+                key={idx}
+                o={o}
+                byId={byId}
+                newThumb={{ dataUrl: result.image }}
+                actions={
+                  <>
+                    <button className="chip" onClick={() => saveLook(o)}>
+                      Save this look
+                    </button>
+                    <button className="chip" onClick={() => loveThis(o)}>
+                      Love this
+                    </button>
+                    <button className="chip" onClick={() => notMyThing(o, idx)}>
+                      Not my thing
+                    </button>
+                  </>
+                }
+              />
+            )
+          )}
+          {dismissed.size > 0 && dismissed.size === result.outfits.length && (
+            <div className="empty">
+              That was everything from this round - try &ldquo;Style me&rdquo; again for a fresh set.
+            </div>
+          )}
         </div>
       )}
 
