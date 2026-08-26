@@ -96,6 +96,51 @@ export function ChipPick({ options, value, onChange, multi = false }) {
   );
 }
 
+// Tile-density toggle for the Wardrobe/Inspo grids - "compact" (more, smaller,
+// no text) vs "large" (fewer, bigger, with name/meta), same idea as the
+// grid-density switch on shopping sites. State lives in page.js (localStorage
+// key "stylist-tile-size") so both tabs, which stay mounted the whole
+// session, stay in sync with each other.
+export function TileToggle({ size, onChange }) {
+  return (
+    <div className="tile-toggle">
+      <button
+        type="button"
+        className={size === "compact" ? "on" : ""}
+        onClick={() => onChange("compact")}
+        aria-label="Small tiles"
+        title="Small tiles, no text"
+      >
+        <svg viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="1" width="4" height="4" stroke="currentColor" />
+          <rect x="6" y="1" width="4" height="4" stroke="currentColor" />
+          <rect x="11" y="1" width="4" height="4" stroke="currentColor" />
+          <rect x="1" y="6" width="4" height="4" stroke="currentColor" />
+          <rect x="6" y="6" width="4" height="4" stroke="currentColor" />
+          <rect x="11" y="6" width="4" height="4" stroke="currentColor" />
+          <rect x="1" y="11" width="4" height="4" stroke="currentColor" />
+          <rect x="6" y="11" width="4" height="4" stroke="currentColor" />
+          <rect x="11" y="11" width="4" height="4" stroke="currentColor" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className={size === "large" ? "on" : ""}
+        onClick={() => onChange("large")}
+        aria-label="Large tiles"
+        title="Large tiles, with details"
+      >
+        <svg viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="1" width="6.5" height="6.5" stroke="currentColor" />
+          <rect x="8.5" y="1" width="6.5" height="6.5" stroke="currentColor" />
+          <rect x="1" y="8.5" width="6.5" height="6.5" stroke="currentColor" />
+          <rect x="8.5" y="8.5" width="6.5" height="6.5" stroke="currentColor" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 export function FilterGroup({ title, options, selected, onToggle }) {
   return (
     <div className="f-group">
@@ -149,19 +194,27 @@ export function Thumb({ photoId, dataUrl, alt = "", className = "thumb" }) {
 
 // Upload an image to the store. Returns { ok, error } - error carries the
 // server's reason (too large, database down) for the toast.
+// One automatic retry: a ~150-900KB photo body is exactly the size that gets
+// cut off mid-upload on a flaky mobile connection, so a single silent retry
+// resolves most of those before the user ever sees an error.
 export async function uploadImage(adminKey, id, dataUrl) {
-  try {
-    const res = await fetch("/api/image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
-      body: JSON.stringify({ id, dataUrl }),
-    });
-    if (res.ok) return { ok: true };
-    const j = await res.json().catch(() => ({}));
-    return { ok: false, error: j.error || "Photo upload failed - try again" };
-  } catch {
-    return { ok: false, error: "No connection - photo upload failed" };
+  let lastResult;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch("/api/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
+        body: JSON.stringify({ id, dataUrl }),
+      });
+      if (res.ok) return { ok: true };
+      const j = await res.json().catch(() => ({}));
+      lastResult = { ok: false, error: j.error || "Photo upload failed - try again" };
+    } catch {
+      lastResult = { ok: false, error: "No connection - photo upload failed" };
+    }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 1200));
   }
+  return lastResult;
 }
 
 // Best-effort cleanup; failures are logged, never surfaced.

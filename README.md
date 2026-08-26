@@ -24,9 +24,10 @@ items.
 
 Same pattern as the recipe app: Next.js (app router, no TypeScript, no CSS
 framework), Upstash Redis via REST with an in-memory fallback for local dev,
-one shared `ADMIN_PASSWORD`, deployed on Vercel from GitHub. Plus one new
-piece: the Claude API (vision) for tag suggestions on entry, inspo
-classification, and the suggestion engine itself.
+one shared `ADMIN_PASSWORD`, deployed on Vercel from GitHub. Plus two new
+pieces: the Claude API (vision) for tag suggestions on entry, inspo
+classification, and the suggestion engine itself; and remove.bg for wardrobe
+photo background cleanup.
 
 One deliberate difference from the recipe app: the password gates **viewing**
 as well as editing. The wardrobe holds photos of me and what I own, so
@@ -54,7 +55,8 @@ unlocked. AI features need `ANTHROPIC_API_KEY` even locally - put it in
    injected automatically.
 4. Settings → Environment Variables → add `ADMIN_PASSWORD` and
    `ANTHROPIC_API_KEY` (console.anthropic.com). Optional: `CLAUDE_MODEL` to
-   override the default (claude-sonnet-4-5).
+   override the default (claude-sonnet-4-5), and `REMOVEBG_API_KEY`
+   (remove.bg) for wardrobe photo background cleanup.
 5. Redeploy once. From then on: push to `main`, done.
 
 See `.env.example` for the full list. As with the recipe app there's no
@@ -67,7 +69,10 @@ aren't included in that JSON).
 - Wardrobe item: photo + category / colours / season / formality (AI-suggested
   on entry, approved by hand) + `status` (`owned` / `wanted`), `fitStatus`
   (`current` / `not_current` - kept but excluded from suggestions), and a
-  `needsStyling` flag ("how" pieces).
+  `needsStyling` flag ("how" pieces). Photos are run through remove.bg on
+  entry (new items and product-pin "wanted" adds) and composited onto white -
+  best-effort, falls back to the original photo silently on failure. Inspo
+  and style-profile photos are never touched.
 - `wanted` items are never assembled into outfits - they only surface in gap
   notes ("you've already got your eye on…").
 - Inspo items are auto-classified on ingest: outfit photo (primary Flow A

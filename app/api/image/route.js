@@ -11,8 +11,15 @@ export async function POST(request) {
   let body;
   try {
     body = await request.json();
-  } catch {
-    return Response.json({ error: "Bad request" }, { status: 400 });
+  } catch (e) {
+    // Distinct from the field-validation case below: this is usually a large
+    // upload getting cut off mid-transfer on a slow/flaky connection, not a
+    // bad photo. console.error keeps the real cause visible in Vercel logs.
+    console.error("image upload: couldn't parse request body", e);
+    return Response.json(
+      { error: "Upload didn't come through - try again (a slow connection can cut off a large photo mid-upload)" },
+      { status: 400 }
+    );
   }
   const { id, dataUrl } = body || {};
   if (
@@ -22,7 +29,14 @@ export async function POST(request) {
     typeof dataUrl !== "string" ||
     !dataUrl.startsWith("data:image/")
   ) {
-    return Response.json({ error: "Bad request" }, { status: 400 });
+    console.error("image upload: bad payload shape", {
+      hasId: typeof id === "string",
+      dataUrlPrefix: typeof dataUrl === "string" ? dataUrl.slice(0, 20) : typeof dataUrl,
+    });
+    return Response.json(
+      { error: "That photo didn't come through properly - try picking it again" },
+      { status: 400 }
+    );
   }
   if (dataUrl.length > 900_000) {
     return Response.json(

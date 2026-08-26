@@ -5,7 +5,7 @@ import WardrobeTab from "../components/WardrobeTab";
 import InspoTab from "../components/InspoTab";
 import StyleTab from "../components/StyleTab";
 import ProfileTab from "../components/ProfileTab";
-import { newId, uploadImage } from "../components/shared";
+import { newId, uploadImage, deleteImage } from "../components/shared";
 import { CATEGORIES, COLOURS, SEASONS, FORMALITY } from "../lib/style-identity";
 
 const KEY_STORAGE = "stylist-admin-key";
@@ -21,6 +21,26 @@ export default function Home() {
   // A styling request handed over from another tab:
   // { anchorId } runs Flow C, { inspoId } runs Flow A.
   const [styleRequest, setStyleRequest] = useState(null);
+  // Wardrobe/Inspo tile density - lifted up here (rather than living in each
+  // tab) because both tabs stay mounted for the whole session, so a local
+  // hook in each would drift out of sync with the other.
+  const [tileSize, setTileSizeState] = useState("large");
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("stylist-tile-size");
+      if (stored === "compact" || stored === "large") setTileSizeState(stored);
+    } catch {
+      /* localStorage unavailable - just keep the default */
+    }
+  }, []);
+  function setTileSize(next) {
+    setTileSizeState(next);
+    try {
+      localStorage.setItem("stylist-tile-size", next);
+    } catch {
+      /* best-effort persistence only */
+    }
+  }
 
   // Viewing needs the password too. First load tries the stored key; a 401
   // means the whole app stays behind the gate until login succeeds (which
@@ -138,12 +158,31 @@ export default function Home() {
       const res = await fetch(`/api/image/${inspoItem.photoId}`);
       if (!res.ok) throw new Error("no image");
       const blob = await res.blob();
-      const dataUrl = await new Promise((resolve, reject) => {
+      const rawDataUrl = await new Promise((resolve, reject) => {
         const r = new FileReader();
         r.onerror = reject;
         r.onload = () => resolve(r.result);
         r.readAsDataURL(blob);
       });
+      // Same wardrobe-only background cleanup as WardrobeTab - a wanted pin
+      // becomes a wardrobe item, so it gets the catalogue treatment too.
+      // Best-effort: falls back to the original photo on any failure.
+      let dataUrl = rawDataUrl;
+      if (data.bgRemoval) {
+        try {
+          const bgRes = await fetch("/api/bg-remove", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-admin-key": adminKey || "",
+            },
+            body: JSON.stringify({ dataUrl: rawDataUrl }),
+          });
+          if (bgRes.ok) dataUrl = (await bgRes.json()).dataUrl;
+        } catch {
+          /* keep the original photo */
+        }
+      }
       const photoId = newId("wp");
       const up = await uploadImage(adminKey, photoId, dataUrl);
       if (!up.ok) throw new Error(up.error);
@@ -237,6 +276,8 @@ export default function Home() {
     needAuth: () => setShowLogin(true),
     adminKey,
     flash,
+    tileSize,
+    setTileSize,
   };
 
   return (

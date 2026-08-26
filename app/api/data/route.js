@@ -1,5 +1,6 @@
 import { getData, DATA_KEYS, checkAuth } from "../../../lib/store";
 import { hasClaude } from "../../../lib/claude";
+import { hasBgRemoval } from "../../../lib/bgremove";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export async function GET(request) {
     // Lets the UI say up front when AI features aren't configured, instead of
     // failing on first use.
     out.ai = hasClaude();
+    out.bgRemoval = hasBgRemoval();
     return Response.json(out);
   } catch (e) {
     console.error("data error", e);

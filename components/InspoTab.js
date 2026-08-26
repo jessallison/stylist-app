@@ -14,6 +14,7 @@ import {
   FilterGroup,
   PhotoButton,
   Thumb,
+  TileToggle,
   uploadImage,
   deleteImage,
 } from "./shared";
@@ -29,6 +30,8 @@ export default function InspoTab({
   flash,
   onMatch,
   onAddWanted,
+  tileSize,
+  setTileSize,
 }) {
   const inspo = data.inspo;
   const [editingId, setEditingId] = useState(null);
@@ -290,6 +293,7 @@ export default function InspoTab({
           onError={flash}
           multiple
         />
+        <TileToggle size={tileSize} onChange={setTileSize} />
       </div>
       {showFilters && (
         <div className="filter-panel">
@@ -321,7 +325,7 @@ export default function InspoTab({
         </div>
       )}
 
-      <div className="grid">
+      <div className={`grid ${tileSize === "compact" ? "compact" : ""}`}>
         {shown.map((i) => (
           <div
             key={i.id}

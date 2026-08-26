@@ -15,9 +15,11 @@ import {
   FilterGroup,
   PhotoButton,
   Thumb,
+  TileToggle,
   uploadImage,
   deleteImage,
 } from "./shared";
+import CompositionChart from "./CompositionChart";
 
 const EMPTY_FORM = {
   name: "",
@@ -41,6 +43,8 @@ export default function WardrobeTab({
   adminKey,
   flash,
   onStyle,
+  tileSize,
+  setTileSize,
 }) {
   const wardrobe = data.wardrobe;
   const vocab = data.settings.vocab || [];
@@ -49,7 +53,18 @@ export default function WardrobeTab({
   const [form, setForm] = useState(EMPTY_FORM);
   const [photo, setPhoto] = useState(null); // pending data URL for new/replaced photo
   const [tagging, setTagging] = useState(false);
+  const [bgBusy, setBgBusy] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showComposition, setShowComposition] = useState(false);
+  const [luckyId, setLuckyId] = useState(null);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState(new Set());
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [bulkSeason, setBulkSeason] = useState("");
+  const [bulkFormality, setBulkFormality] = useState("");
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkTag, setBulkTag] = useState("");
+  const [bulkColour, setBulkColour] = useState("");
   const [cats, setCats] = useState(new Set());
   const [brands, setBrands] = useState(new Set());
   const [cols, setCols] = useState(new Set());
@@ -67,11 +82,40 @@ export default function WardrobeTab({
 
   // --- add / edit -----------------------------------------------------------
 
-  async function startNew(dataUrl) {
+  // Wardrobe photos only (see lib/bgremove.js) - composites the garment onto
+  // white so the grid reads as a catalogue rather than a phone snapshot.
+  // Best-effort: a failure just keeps the original photo, flagged once.
+  async function cleanBackground(rawDataUrl) {
+    if (!data.bgRemoval) return rawDataUrl;
+    setBgBusy(true);
+    try {
+      const res = await fetch("/api/bg-remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
+        body: JSON.stringify({ dataUrl: rawDataUrl }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        if (j.error !== "no-key") flash("Background removal failed - kept the original photo");
+        return rawDataUrl;
+      }
+      const j = await res.json();
+      return j.dataUrl;
+    } catch {
+      flash("Background removal failed - kept the original photo");
+      return rawDataUrl;
+    } finally {
+      setBgBusy(false);
+    }
+  }
+
+  async function startNew(rawDataUrl) {
     if (!requireUnlock()) return;
     setForm(EMPTY_FORM);
-    setPhoto(dataUrl);
+    setPhoto(rawDataUrl);
     setEditingId("new");
+    const dataUrl = await cleanBackground(rawDataUrl);
+    setPhoto(dataUrl);
     if (!data.ai) return;
     // AI-suggested tags, prefilled for approval - never saved unseen.
     setTagging(true);
@@ -208,6 +252,49 @@ export default function WardrobeTab({
     }
   }
 
+  // --- bulk edit --------------------------------------------------------------
+
+  function toggleBulk(id) {
+    setBulkSelected((cur) => {
+      const next = new Set(cur);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function exitBulk() {
+    setBulkMode(false);
+    setBulkSelected(new Set());
+  }
+
+  // Applies a patch to every selected item in one save, so a batch of 20
+  // edits is one write, not twenty.
+  async function bulkApply(patch, label) {
+    if (bulkSelected.size === 0) return;
+    const n = bulkSelected.size;
+    const ok = await save(
+      "wardrobe",
+      wardrobe.map((w) => (bulkSelected.has(w.id) ? { ...w, ...patch(w) } : w))
+    );
+    if (ok) flash(`${label} - ${n} item${n === 1 ? "" : "s"}`);
+  }
+
+  async function bulkDelete() {
+    if (bulkSelected.size === 0) return;
+    const n = bulkSelected.size;
+    if (!confirm(`Delete ${n} item${n === 1 ? "" : "s"}? This can't be undone.`)) return;
+    const toDelete = wardrobe.filter((w) => bulkSelected.has(w.id));
+    const ok = await save(
+      "wardrobe",
+      wardrobe.filter((w) => !bulkSelected.has(w.id))
+    );
+    if (ok) {
+      toDelete.forEach((w) => w.photoId && deleteImage(adminKey, w.photoId));
+      flash(`Deleted ${n} item${n === 1 ? "" : "s"}`);
+      setBulkSelected(new Set());
+    }
+  }
+
   // --- form view ------------------------------------------------------------
 
   if (editingId !== null) {
@@ -225,9 +312,10 @@ export default function WardrobeTab({
             <PhotoButton
               className="btn ghost"
               label={photo || original?.photoId ? "Replace photo" : "Add photo"}
-              onPhoto={setPhoto}
+              onPhoto={async (raw) => setPhoto(await cleanBackground(raw))}
               onError={flash}
             />
+            {bgBusy && <div className="count" style={{ marginTop: 8 }}>Removing background…</div>}
             {tagging && <div className="count" style={{ marginTop: 8 }}>Suggesting tags…</div>}
           </div>
         </div>
@@ -343,7 +431,7 @@ export default function WardrobeTab({
           />
         </div>
         <div className="row" style={{ marginBottom: 0 }}>
-          <button className="btn" type="submit">
+          <button className="btn" type="submit" disabled={bgBusy}>
             Save
           </button>
           <button
@@ -411,6 +499,26 @@ export default function WardrobeTab({
   // Brand facet is derived from whatever's been entered - no maintained list.
   const allBrands = [...new Set(wardrobe.map((w) => w.brand).filter(Boolean))].sort();
 
+  // Shuffle: picks from whatever's currently shown and wearable, respecting
+  // active search/filters - same "🎲 Surprise me" pattern as the recipe app.
+  const luckyPool = shown.filter(
+    (w) => w.status === "owned" && w.fitStatus !== "not_current"
+  );
+  const luckyEntry = luckyId ? luckyPool.find((w) => w.id === luckyId) : null;
+  function pickLucky() {
+    if (luckyPool.length === 0) return;
+    const pool =
+      luckyPool.length > 1 ? luckyPool.filter((w) => w.id !== luckyId) : luckyPool;
+    setLuckyId(pool[Math.floor(Math.random() * pool.length)].id);
+  }
+
+  // Composition chart: the whole owned, currently-wearable wardrobe, not
+  // narrowed by whatever search/filters happen to be active - it's an audit
+  // view, not a filtered list.
+  const wearable = wardrobe.filter(
+    (w) => w.status === "owned" && w.fitStatus !== "not_current"
+  );
+
   return (
     <div>
       <div className="count">
@@ -428,13 +536,208 @@ export default function WardrobeTab({
         >
           Filters{activeCount ? ` (${activeCount})` : ""}
         </button>
+        <button
+          className="chip"
+          onClick={pickLucky}
+          disabled={luckyPool.length === 0}
+        >
+          🎲 {luckyEntry ? "Pick again" : "Surprise me"}
+        </button>
+        <button
+          className={`btn ghost ${showComposition ? "has-filters" : ""}`}
+          onClick={() => setShowComposition(!showComposition)}
+        >
+          Composition
+        </button>
+        <button
+          className={`btn ghost ${bulkMode ? "has-filters" : ""}`}
+          onClick={() => {
+            if (bulkMode) return exitBulk();
+            if (!requireUnlock()) return;
+            setBulkMode(true);
+          }}
+        >
+          {bulkMode ? "Done" : "Bulk edit"}
+        </button>
         <PhotoButton
           className="btn"
           label="+ Add from photo"
           onPhoto={startNew}
           onError={flash}
         />
+        <TileToggle size={tileSize} onChange={setTileSize} />
       </div>
+
+      {showComposition && <CompositionChart items={wearable} />}
+
+      {bulkMode && (
+        <div className="bulk-panel">
+          <div className="bulk-head">
+            <span>
+              {bulkSelected.size} selected of {shown.length} shown
+            </span>
+            <button className="lucky-dismiss" onClick={() => setBulkSelected(new Set(shown.map((w) => w.id)))}>
+              Select all shown
+            </button>
+            <button className="lucky-dismiss" onClick={() => setBulkSelected(new Set())}>
+              Clear
+            </button>
+          </div>
+
+          <div className="bulk-row">
+            <select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)}>
+              <option value="">Set category…</option>
+              {CATEGORIES.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+            <button
+              className="chip"
+              disabled={!bulkCategory || bulkSelected.size === 0}
+              onClick={() => bulkApply(() => ({ category: bulkCategory }), `Category set to ${bulkCategory}`)}
+            >
+              Apply
+            </button>
+          </div>
+
+          <div className="bulk-row">
+            <select value={bulkSeason} onChange={(e) => setBulkSeason(e.target.value)}>
+              <option value="">Set season…</option>
+              {SEASONS.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+            <button
+              className="chip"
+              disabled={!bulkSeason || bulkSelected.size === 0}
+              onClick={() => bulkApply(() => ({ season: bulkSeason }), `Season set to ${bulkSeason}`)}
+            >
+              Apply
+            </button>
+          </div>
+
+          <div className="bulk-row">
+            <select value={bulkFormality} onChange={(e) => setBulkFormality(e.target.value)}>
+              <option value="">Set formality…</option>
+              {FORMALITY.map((f) => (
+                <option key={f}>{f}</option>
+              ))}
+            </select>
+            <button
+              className="chip"
+              disabled={!bulkFormality || bulkSelected.size === 0}
+              onClick={() => bulkApply(() => ({ formality: bulkFormality }), `Formality set to ${bulkFormality}`)}
+            >
+              Apply
+            </button>
+          </div>
+
+          <div className="bulk-row">
+            <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)}>
+              <option value="">Set status…</option>
+              <option value="owned">Owned</option>
+              <option value="wanted">Wanted</option>
+            </select>
+            <button
+              className="chip"
+              disabled={!bulkStatus || bulkSelected.size === 0}
+              onClick={() => bulkApply(() => ({ status: bulkStatus }), `Status set to ${bulkStatus}`)}
+            >
+              Apply
+            </button>
+          </div>
+
+          {vocab.length > 0 && (
+            <div className="bulk-row">
+              <select value={bulkTag} onChange={(e) => setBulkTag(e.target.value)}>
+                <option value="">Add tag…</option>
+                {vocab.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+              <button
+                className="chip"
+                disabled={!bulkTag || bulkSelected.size === 0}
+                onClick={() =>
+                  bulkApply(
+                    (w) =>
+                      (w.tags || []).includes(bulkTag)
+                        ? {}
+                        : { tags: [...(w.tags || []), bulkTag] },
+                    `"${bulkTag}" added`
+                  )
+                }
+              >
+                Add
+              </button>
+            </div>
+          )}
+
+          <div className="bulk-row">
+            <select value={bulkColour} onChange={(e) => setBulkColour(e.target.value)}>
+              <option value="">Add colour…</option>
+              {COLOURS.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+            <button
+              className="chip"
+              disabled={!bulkColour || bulkSelected.size === 0}
+              onClick={() =>
+                bulkApply(
+                  (w) =>
+                    (w.colours || []).includes(bulkColour)
+                      ? {}
+                      : { colours: [...(w.colours || []), bulkColour] },
+                  `"${bulkColour}" added`
+                )
+              }
+            >
+              Add
+            </button>
+          </div>
+
+          <div className="bulk-row">
+            <button
+              className="chip"
+              disabled={bulkSelected.size === 0}
+              onClick={() => bulkApply(() => ({ fitStatus: "not_current" }), "Marked not current size")}
+            >
+              Mark not current size
+            </button>
+            <button
+              className="chip"
+              disabled={bulkSelected.size === 0}
+              onClick={() => bulkApply(() => ({ fitStatus: "current" }), "Cleared not current size")}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className="bulk-row">
+            <button
+              className="chip"
+              disabled={bulkSelected.size === 0}
+              onClick={() => bulkApply(() => ({ needsStyling: true }), "Flagged needs styling")}
+            >
+              Flag needs styling
+            </button>
+            <button
+              className="chip"
+              disabled={bulkSelected.size === 0}
+              onClick={() => bulkApply(() => ({ needsStyling: false }), "Cleared needs styling")}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className="bulk-row">
+            <button className="btn danger" disabled={bulkSelected.size === 0} onClick={bulkDelete}>
+              Delete selected
+            </button>
+          </div>
+        </div>
+      )}
       {showFilters && (
         <div className="filter-panel">
           <FilterGroup
@@ -494,6 +797,33 @@ export default function WardrobeTab({
         </div>
       )}
 
+      {luckyEntry && (
+        <div className="lucky-pick">
+          <div className="lucky-head">
+            <div className="section-h" style={{ margin: 0 }}>Today&rsquo;s pick</div>
+            <button className="lucky-dismiss" onClick={() => setLuckyId(null)}>
+              Dismiss
+            </button>
+          </div>
+          <div className="lucky-card">
+            <Thumb photoId={luckyEntry.photoId} alt={luckyEntry.name} />
+            <div className="card-body">
+              <h3>{luckyEntry.name}</h3>
+              <div className="meta">
+                {[luckyEntry.brand, luckyEntry.category, (luckyEntry.colours || []).join(", "), luckyEntry.season]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+              <div className="card-actions">
+                <button className="chip" onClick={() => onStyle(luckyEntry.id)}>
+                  Style this
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {wardrobe.length === 0 && (
         <div className="empty">
           The wardrobe is empty. Snap or screenshot each capsule piece and add it
@@ -501,12 +831,12 @@ export default function WardrobeTab({
         </div>
       )}
 
-      <div className="grid">
+      <div className={`grid ${tileSize === "compact" ? "compact" : ""}`}>
         {shown.map((w) => (
           <div
             key={w.id}
-            className="card item-card clickable"
-            onClick={() => startEdit(w)}
+            className={`card item-card clickable ${bulkMode && bulkSelected.has(w.id) ? "picked" : ""}`}
+            onClick={() => (bulkMode ? toggleBulk(w.id) : startEdit(w))}
           >
             <Thumb photoId={w.photoId} alt={w.name} />
             <div className="card-body">
@@ -528,29 +858,31 @@ export default function WardrobeTab({
                   </span>
                 ))}
               </div>
-              <div className="card-actions">
-                {w.status === "owned" ? (
-                  <button
-                    className="chip"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onStyle(w.id);
-                    }}
-                  >
-                    Style this
-                  </button>
-                ) : (
-                  <button
-                    className="chip"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      markOwned(w);
-                    }}
-                  >
-                    I bought it
-                  </button>
-                )}
-              </div>
+              {!bulkMode && (
+                <div className="card-actions">
+                  {w.status === "owned" ? (
+                    <button
+                      className="chip"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onStyle(w.id);
+                      }}
+                    >
+                      Style this
+                    </button>
+                  ) : (
+                    <button
+                      className="chip"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markOwned(w);
+                      }}
+                    >
+                      I bought it
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))}

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SEASONS, OCCASIONS, COLOURS } from "../lib/style-identity";
-import { newId, PhotoButton, Thumb, uploadImage, deleteImage } from "./shared";
+import { SEASONS, OCCASIONS, COLOURS, CATEGORIES } from "../lib/style-identity";
+import { newId, norm, PhotoButton, Thumb, uploadImage, deleteImage } from "./shared";
 
-// The three entry flows of the suggestion engine:
+// The three AI entry flows of the suggestion engine, plus one manual one:
 //   A - match an inspo image (from the library, or a fresh upload)
 //   B - filters only ("what should I wear" with no source image)
 //   C - style an anchor piece (an owned item, or a just-bought photo)
+//   M - build my own: pick pieces by hand, no AI call at all
 
 export default function StyleTab({
   data,
@@ -33,6 +34,13 @@ export default function StyleTab({
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const ranRequest = useRef(null);
+
+  // Manual builder (flow M): no AI, just a picker.
+  const [manualIds, setManualIds] = useState([]);
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualSearch, setManualSearch] = useState("");
+  const [manualCat, setManualCat] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
 
   const wardrobe = data.wardrobe;
   const byId = Object.fromEntries(wardrobe.map((w) => [w.id, w]));
@@ -135,6 +143,38 @@ export default function StyleTab({
     else if (anchorPhotoId) deleteImage(adminKey, anchorPhotoId);
   }
 
+  function toggleManual(id) {
+    setManualIds((cur) =>
+      cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]
+    );
+  }
+
+  async function saveManualLook() {
+    if (!unlocked) {
+      needAuth();
+      return;
+    }
+    if (manualIds.length < 1) {
+      flash("Pick at least one piece first");
+      return;
+    }
+    setManualSaving(true);
+    const look = {
+      id: newId("l"),
+      title: manualTitle.trim() || "Untitled look",
+      item_ids: manualIds,
+      source: "manual",
+      savedAt: Date.now(),
+    };
+    const ok = await save("looks", (cur) => [...(cur || []), look]);
+    setManualSaving(false);
+    if (ok) {
+      flash(`"${look.title}" saved to your looks`);
+      setManualIds([]);
+      setManualTitle("");
+    }
+  }
+
   async function removeLook(look) {
     if (!unlocked) {
       needAuth();
@@ -176,6 +216,7 @@ export default function StyleTab({
         {flowBtn("B", "Suggest outfits", "from filters, or nothing at all")}
         {flowBtn("A", "Match an inspo image", "rebuild a saved look from my wardrobe")}
         {flowBtn("C", "Style a piece", "a new buy, or something I never wear")}
+        {flowBtn("M", "Build my own", "pick pieces by hand, no AI")}
       </div>
 
       {flow === "A" && (
@@ -247,6 +288,24 @@ export default function StyleTab({
         </div>
       )}
 
+      {flow === "M" && (
+        <ManualBuilder
+          owned={anchorable}
+          byId={byId}
+          selected={manualIds}
+          onToggle={toggleManual}
+          title={manualTitle}
+          onTitle={setManualTitle}
+          search={manualSearch}
+          onSearch={setManualSearch}
+          cat={manualCat}
+          onCat={setManualCat}
+          onSave={saveManualLook}
+          saving={manualSaving}
+        />
+      )}
+
+      {flow !== "M" && (
       <div className="flow-config">
         <div className="row" style={{ flexWrap: "wrap" }}>
           <select
@@ -291,6 +350,7 @@ export default function StyleTab({
           </button>
         </div>
       </div>
+      )}
 
       {busy && (
         <div className="empty">Going through the wardrobe like an actual stylist would…</div>
@@ -316,7 +376,7 @@ export default function StyleTab({
         </div>
       )}
 
-      {!result && !busy && !error && owned.length < 2 && (
+      {flow !== "M" && !result && !busy && !error && owned.length < 2 && (
         <div className="empty">
           Add a few wardrobe pieces first - the engine only dresses you in
           things you actually own.
@@ -400,6 +460,116 @@ function OutfitCard({ o, byId, newThumb, actions }) {
         </div>
       )}
       {actions && <div className="card-actions">{actions}</div>}
+    </div>
+  );
+}
+
+// Manual look builder (flow M): tap pieces to add/remove, no AI involved.
+// Order of selection is the order of the outfit - tap a picked piece again
+// (in the grid or the build strip) to drop it.
+function ManualBuilder({
+  owned,
+  byId,
+  selected,
+  onToggle,
+  title,
+  onTitle,
+  search,
+  onSearch,
+  cat,
+  onCat,
+  onSave,
+  saving,
+}) {
+  const q = norm(search);
+  const picked = new Set(selected);
+  const shown = owned.filter(
+    (w) =>
+      (!cat || w.category === cat) &&
+      (!q || norm(w.name).includes(q) || norm(w.brand).includes(q))
+  );
+
+  return (
+    <div>
+      {selected.length > 0 && (
+        <div className="flow-config">
+          <div className="section-sub" style={{ marginTop: 0 }}>
+            Building ({selected.length} piece{selected.length === 1 ? "" : "s"}) -
+            tap a piece again to drop it
+          </div>
+          <div className="outfit-items">
+            {selected.map((id) => (
+              <div
+                key={id}
+                className="outfit-item"
+                onClick={() => onToggle(id)}
+                style={{ cursor: "pointer" }}
+                title="Remove from this look"
+              >
+                <Thumb photoId={byId[id]?.photoId} className="thumb sq" />
+                <div className="oi-name">
+                  {byId[id]?.name || "No longer in wardrobe"}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="row" style={{ flexWrap: "wrap" }}>
+            <input
+              placeholder="Name this look (optional)"
+              value={title}
+              onChange={(e) => onTitle(e.target.value)}
+              style={{ maxWidth: 280 }}
+            />
+            <button className="btn" onClick={onSave} disabled={saving}>
+              {saving ? "Saving…" : "Save this look"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flow-config">
+        <div className="row" style={{ flexWrap: "wrap" }}>
+          <input
+            placeholder="Search wardrobe…"
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+          />
+          <select value={cat} onChange={(e) => onCat(e.target.value)}>
+            <option value="">Any category</option>
+            {CATEGORIES.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {owned.length === 0 ? (
+        <div className="empty">
+          No currently-wearable owned pieces yet - add some in the Wardrobe
+          tab first.
+        </div>
+      ) : (
+        <div className="grid">
+          {shown.map((w) => (
+            <div
+              key={w.id}
+              className={`card item-card clickable ${picked.has(w.id) ? "picked" : ""}`}
+              onClick={() => onToggle(w.id)}
+            >
+              <Thumb photoId={w.photoId} alt={w.name} />
+              <div className="card-body">
+                <h3>{w.name}</h3>
+                <div className="meta">
+                  {[w.brand, w.category].filter(Boolean).join(" · ")}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {shown.length === 0 && owned.length > 0 && (
+        <div className="empty">Nothing matches.</div>
+      )}
     </div>
   );
 }
