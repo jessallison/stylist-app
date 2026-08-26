@@ -49,6 +49,17 @@ textarea {
   width: 100%;
 }
 
+/* Checkboxes aren't text fields - the border/padding above is meant for
+   those, not a tickbox, and left unset it makes some browsers render a
+   padded box around the checkbox that crowds its label. */
+input[type="checkbox"] {
+  width: auto;
+  border: none;
+  padding: 0;
+  background: none;
+  flex-shrink: 0;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: #a49d8f;
@@ -536,17 +547,20 @@ header.top {
 
 .f-opt {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
   font-size: 0.84rem;
-  padding: 3px 0;
+  line-height: 1.4;
+  padding: 5px 0;
   cursor: pointer;
 }
 
 .f-opt input {
-  width: auto;
   accent-color: var(--ink);
   cursor: pointer;
+  /* Nudge down to sit level with the label's first line, since the row
+     aligns to the top now (needed for labels that wrap to two lines). */
+  margin-top: 3px;
 }
 
 .f-count {
@@ -888,7 +902,7 @@ header.top {
 .flag-row {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 12px;
 }
 
 /* --- Style me tab ----------------------------------------------------------- */
