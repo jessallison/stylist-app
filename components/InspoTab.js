@@ -341,7 +341,7 @@ export default function InspoTab({
                   </button>
                 ) : (
                   <button className="chip" onClick={() => onMatch(i.id)}>
-                    Match my wardrobe to this
+                    Style me
                   </button>
                 )}
               </div>
