@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SEASONS, OCCASIONS, COLOURS } from "../lib/style-identity";
-import { PhotoButton, Thumb } from "./shared";
+import { newId, PhotoButton, Thumb, uploadImage, deleteImage } from "./shared";
 
 // The three entry flows of the suggestion engine:
 //   A - match an inspo image (from the library, or a fresh upload)
@@ -11,6 +11,7 @@ import { PhotoButton, Thumb } from "./shared";
 
 export default function StyleTab({
   data,
+  save,
   unlocked,
   needAuth,
   adminKey,
@@ -100,6 +101,53 @@ export default function StyleTab({
     clearRequest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request]);
+
+  // Keep a suggestion around: item ids + the stylist's reasoning. If the
+  // outfit was built on an uncatalogued "NEW" anchor, its photo is copied
+  // into the image store so the look still renders later.
+  async function saveLook(o) {
+    if (!unlocked) {
+      needAuth();
+      return;
+    }
+    let anchorPhotoId;
+    if (o.item_ids.includes("NEW") && result?.image) {
+      anchorPhotoId = newId("lp");
+      const up = await uploadImage(adminKey, anchorPhotoId, result.image);
+      if (!up.ok) {
+        flash(up.error);
+        return;
+      }
+    }
+    const look = {
+      id: newId("l"),
+      title: o.title,
+      item_ids: o.item_ids,
+      formula: o.formula,
+      why: o.why,
+      styling_notes: o.styling_notes,
+      gaps: o.gaps || [],
+      anchorPhotoId,
+      savedAt: Date.now(),
+    };
+    const ok = await save("looks", (cur) => [...(cur || []), look]);
+    if (ok) flash(`"${o.title}" saved to your looks`);
+    else if (anchorPhotoId) deleteImage(adminKey, anchorPhotoId);
+  }
+
+  async function removeLook(look) {
+    if (!unlocked) {
+      needAuth();
+      return;
+    }
+    if (!confirm(`Remove "${look.title}" from saved looks?`)) return;
+    const ok = await save("looks", (cur) =>
+      (cur || []).filter((l) => l.id !== look.id)
+    );
+    if (ok && look.anchorPhotoId) deleteImage(adminKey, look.anchorPhotoId);
+  }
+
+  const looks = data.looks || [];
 
   const flowBtn = (id, label, sub) => (
     <button
@@ -253,45 +301,17 @@ export default function StyleTab({
         <div className="results">
           {result.overall_note && <div className="stylist-note">{result.overall_note}</div>}
           {result.outfits.map((o, idx) => (
-            <div key={idx} className="card outfit-card">
-              <div className="outfit-head">
-                <h3>{o.title}</h3>
-                {o.formula && <span className="badge formula">{o.formula}</span>}
-              </div>
-              <div className="outfit-items">
-                {o.item_ids.map((id) =>
-                  id === "NEW" ? (
-                    <div key={id} className="outfit-item">
-                      <Thumb dataUrl={result.image} className="thumb sq" />
-                      <div className="oi-name">The new piece</div>
-                    </div>
-                  ) : (
-                    <div key={id} className="outfit-item">
-                      <Thumb photoId={byId[id]?.photoId} className="thumb sq" />
-                      <div className="oi-name">{byId[id]?.name || id}</div>
-                    </div>
-                  )
-                )}
-              </div>
-              {o.why && <p className="outfit-why">{o.why}</p>}
-              {o.styling_notes && <p className="outfit-notes">↳ {o.styling_notes}</p>}
-              {o.gaps?.length > 0 && (
-                <div className="gaps">
-                  {o.gaps.map((g, gi) => (
-                    <div key={gi} className="gap">
-                      Missing: {g.need}
-                      {g.wanted_id && byId[g.wanted_id] && (
-                        <span className="gap-wanted">
-                          {" "}
-                          - you&rsquo;ve already got your eye on{" "}
-                          <b>{byId[g.wanted_id].name}</b>
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <OutfitCard
+              key={idx}
+              o={o}
+              byId={byId}
+              newThumb={{ dataUrl: result.image }}
+              actions={
+                <button className="chip" onClick={() => saveLook(o)}>
+                  Save this look
+                </button>
+              }
+            />
           ))}
         </div>
       )}
@@ -302,6 +322,84 @@ export default function StyleTab({
           things you actually own.
         </div>
       )}
+
+      {looks.length > 0 && (
+        <>
+          <div className="section-h">Saved looks ({looks.length})</div>
+          <div className="section-sub">
+            Suggestions you&rsquo;ve kept - outfits reference the wardrobe, so
+            photos stay current.
+          </div>
+          <div className="results">
+            {[...looks]
+              .sort((a, b) => b.savedAt - a.savedAt)
+              .map((l) => (
+                <OutfitCard
+                  key={l.id}
+                  o={l}
+                  byId={byId}
+                  newThumb={{ photoId: l.anchorPhotoId }}
+                  actions={
+                    <button className="chip" onClick={() => removeLook(l)}>
+                      Remove
+                    </button>
+                  }
+                />
+              ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// One outfit, as a card - used for fresh suggestions and saved looks alike.
+// `newThumb` is the image for an uncatalogued "NEW" anchor piece.
+function OutfitCard({ o, byId, newThumb, actions }) {
+  return (
+    <div className="card outfit-card">
+      <div className="outfit-head">
+        <h3>{o.title}</h3>
+        {o.formula && <span className="badge formula">{o.formula}</span>}
+      </div>
+      <div className="outfit-items">
+        {o.item_ids.map((id) =>
+          id === "NEW" ? (
+            <div key={id} className="outfit-item">
+              <Thumb
+                dataUrl={newThumb?.dataUrl}
+                photoId={newThumb?.photoId}
+                className="thumb sq"
+              />
+              <div className="oi-name">The new piece</div>
+            </div>
+          ) : (
+            <div key={id} className="outfit-item">
+              <Thumb photoId={byId[id]?.photoId} className="thumb sq" />
+              <div className="oi-name">{byId[id]?.name || "No longer in wardrobe"}</div>
+            </div>
+          )
+        )}
+      </div>
+      {o.why && <p className="outfit-why">{o.why}</p>}
+      {o.styling_notes && <p className="outfit-notes">↳ {o.styling_notes}</p>}
+      {o.gaps?.length > 0 && (
+        <div className="gaps">
+          {o.gaps.map((g, gi) => (
+            <div key={gi} className="gap">
+              Missing: {g.need}
+              {g.wanted_id && byId[g.wanted_id] && (
+                <span className="gap-wanted">
+                  {" "}
+                  - you&rsquo;ve already got your eye on{" "}
+                  <b>{byId[g.wanted_id].name}</b>
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {actions && <div className="card-actions">{actions}</div>}
     </div>
   );
 }

@@ -76,6 +76,8 @@ aren't included in that JSON).
   reference).
 - Style profile: worn-outfit photos exported by hand from Stylebook's Cold
   Weather / Warm Weather / Fancy folders, same groupings.
+- Saved looks: any suggestion can be kept ("Save this look") - stored as item
+  references plus the stylist's reasoning, listed on the Style me tab.
 
 ## Phase two (scoped, not built)
 

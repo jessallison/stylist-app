@@ -252,6 +252,30 @@ export default function InspoTab({
       <div className="count">
         {inspo.length} saved · screenshots from Pinterest, Depop, Vinted, anywhere
       </div>
+      {/* One-tap type filter - the everyday facet, no panel required. */}
+      {inspo.length > 0 && (
+        <div className="chip-pick" style={{ marginBottom: 12 }}>
+          <button
+            className={`chip ${types.size === 0 ? "on" : ""}`}
+            onClick={() => setTypes(new Set())}
+          >
+            All
+          </button>
+          {INSPO_TYPES.map(([v, label]) => (
+            <button
+              key={v}
+              className={`chip ${types.size === 1 && types.has(v) ? "on" : ""}`}
+              onClick={() =>
+                setTypes(
+                  types.size === 1 && types.has(v) ? new Set() : new Set([v])
+                )
+              }
+            >
+              {label} ({inspo.filter((i) => i.type === v).length})
+            </button>
+          ))}
+        </div>
+      )}
       <div className="toolbar">
         <button
           className={`btn ghost ${activeCount ? "has-filters" : ""}`}
