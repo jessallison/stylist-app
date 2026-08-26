@@ -538,7 +538,7 @@ export default function WardrobeTab({
       {categoryCounts.length > 1 && (
         <div className="chip-pick" style={{ marginBottom: 12 }}>
           <button
-            className={`chip ${cats.size === 0 ? "on" : ""}`}
+            className={`chip ${cats.size === 0 ? "sel" : ""}`}
             onClick={() => setCats(new Set())}
           >
             All
@@ -546,7 +546,7 @@ export default function WardrobeTab({
           {categoryCounts.map(([c, n]) => (
             <button
               key={c}
-              className={`chip ${cats.size === 1 && cats.has(c) ? "on" : ""}`}
+              className={`chip ${cats.size === 1 && cats.has(c) ? "sel" : ""}`}
               onClick={() =>
                 setCats(cats.size === 1 && cats.has(c) ? new Set() : new Set([c]))
               }

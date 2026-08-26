@@ -12,6 +12,7 @@
   --line-dark: #141210;
   --alert: #96502b;
   --alert-soft: #f3e7dc;
+  --accent: #a9bc2e;
   --serif: var(--font-display), Georgia, "Times New Roman", serif;
 }
 
@@ -212,6 +213,17 @@ header.top {
   font-weight: 600;
 }
 
+/* "sel" is the browse-time one-tap filter chips (Wardrobe category, Inspo
+   type, Profile context, Style "just me") - kept visually distinct from
+   .on (used for in-form value pickers like ChipPick) so the accent colour
+   means one thing only: this filter/view is switched on. */
+.chip.sel {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .chip-pick {
   display: flex;
   flex-wrap: wrap;
@@ -253,7 +265,9 @@ header.top {
 }
 
 .btn.ghost.has-filters {
-  border-color: var(--ink);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
   font-weight: 600;
 }
 
@@ -632,8 +646,8 @@ header.top {
 }
 
 .tile-toggle button.on {
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--ink);
 }
 
 .tile-toggle svg {
@@ -1099,37 +1113,66 @@ header.top {
   padding: 24px;
 }
 
-.three-words {
+/* --- Profile masthead: hero photo + the three words as a magazine spread,
+   rather than a bordered data table. Photo is the newest worn-outfit shot -
+   real, not a template - text sits beside it in the same italic serif used
+   throughout for emphasis. --- */
+
+.profile-hero {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0;
-  border: 1px solid var(--line);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 32px;
+  align-items: stretch;
+  margin-bottom: 4px;
 }
 
-.word {
-  padding: 16px 18px;
-  border-right: 1px solid var(--line);
+.profile-hero-photo .thumb {
+  height: 100%;
+}
+
+.profile-hero-photo.empty {
+  aspect-ratio: 3 / 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tile);
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-align: center;
+  line-height: 1.6;
+  padding: 24px;
+}
+
+.profile-hero-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  justify-content: center;
+  padding: 6px 0;
 }
 
-.word:last-child {
-  border-right: none;
+.three-words-mast {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
-.word-main {
+.word-mast-main {
+  display: block;
   font-family: var(--serif);
   font-style: italic;
   font-weight: 500;
-  font-size: 1.2rem;
+  font-size: 2.3rem;
+  line-height: 1.15;
   color: var(--ink);
 }
 
-.word-sub {
-  font-size: 0.7rem;
+.word-mast-sub {
+  display: block;
+  font-size: 0.72rem;
   color: var(--muted);
   letter-spacing: 0.02em;
+  margin-top: 3px;
 }
 
 .regulars {
@@ -1284,15 +1327,11 @@ header.top {
   .form .cols,
   .form .cols.two,
   .form .cols.name-brand,
-  .three-words {
+  .profile-hero {
     grid-template-columns: 1fr;
   }
-  .word {
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-  }
-  .word:last-child {
-    border-bottom: none;
+  .word-mast-main {
+    font-size: 1.8rem;
   }
   .flow-row {
     grid-template-columns: 1fr;

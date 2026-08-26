@@ -290,7 +290,7 @@ export default function InspoTab({
       {inspo.length > 0 && (
         <div className="chip-pick" style={{ marginBottom: 12 }}>
           <button
-            className={`chip ${types.size === 0 ? "on" : ""}`}
+            className={`chip ${types.size === 0 ? "sel" : ""}`}
             onClick={() => setTypes(new Set())}
           >
             All
@@ -298,7 +298,7 @@ export default function InspoTab({
           {INSPO_TYPES.map(([v, label]) => (
             <button
               key={v}
-              className={`chip ${types.size === 1 && types.has(v) ? "on" : ""}`}
+              className={`chip ${types.size === 1 && types.has(v) ? "sel" : ""}`}
               onClick={() =>
                 setTypes(
                   types.size === 1 && types.has(v) ? new Set() : new Set([v])

@@ -18,6 +18,9 @@ export default function ProfileTab({
 }) {
   const profile = data.styleProfile;
   const settings = data.settings;
+  const heroPhoto = profile.length
+    ? [...profile].sort((a, b) => b.addedAt - a.addedAt)[0]
+    : null;
   const [context, setContext] = useState("cold");
   const [busy, setBusy] = useState(0);
   const [editingIdentity, setEditingIdentity] = useState(false);
@@ -98,30 +101,41 @@ export default function ProfileTab({
         against.
       </div>
       {!editingIdentity ? (
-        <div className="card identity-card">
-          <div className="three-words">
-            {settings.threeWords.map((t) => (
-              <div key={t.word} className="word">
-                <span className="word-main">{t.word}</span>
-                <span className="word-sub">{t.meaning}</span>
+        <div className="profile-hero">
+          <div className="profile-hero-photo">
+            {heroPhoto ? (
+              <Thumb photoId={heroPhoto.photoId} className="thumb" />
+            ) : (
+              <div className="profile-hero-photo empty">
+                Add a worn-outfit photo below and it&rsquo;ll show here
               </div>
-            ))}
+            )}
           </div>
-          <div className="meta" style={{ marginTop: 10 }}>
-            <b>Vocabulary:</b> {settings.vocab.join(", ")}
-          </div>
-          <div className="meta" style={{ marginTop: 8 }}>
-            <b>Regulars:</b>
-            <ul className="regulars">
-              {settings.regulars.map((r) => (
-                <li key={r}>{r}</li>
+          <div className="profile-hero-text">
+            <div className="three-words-mast">
+              {settings.threeWords.map((t) => (
+                <div key={t.word}>
+                  <span className="word-mast-main">{t.word}</span>
+                  <span className="word-mast-sub">{t.meaning}</span>
+                </div>
               ))}
-            </ul>
-          </div>
-          <div className="card-actions">
-            <button className="chip" onClick={startIdentityEdit}>
-              Edit
-            </button>
+            </div>
+            <div className="meta" style={{ marginTop: 10 }}>
+              <b>Vocabulary:</b> {settings.vocab.join(", ")}
+            </div>
+            <div className="meta" style={{ marginTop: 8 }}>
+              <b>Regulars:</b>
+              <ul className="regulars">
+                {settings.regulars.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="card-actions">
+              <button className="chip" onClick={startIdentityEdit}>
+                Edit
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -190,7 +204,7 @@ export default function ProfileTab({
           {PROFILE_CONTEXTS.map(([v, label]) => (
             <button
               key={v}
-              className={`chip ${context === v ? "on" : ""}`}
+              className={`chip ${context === v ? "sel" : ""}`}
               onClick={() => setContext(v)}
             >
               {label} (

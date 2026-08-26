@@ -337,7 +337,7 @@ export default function StyleTab({
             ))}
           </select>
           <button
-            className={`chip ${filters.justMe ? "on" : ""}`}
+            className={`chip ${filters.justMe ? "sel" : ""}`}
             onClick={() =>
               setFilters({ ...filters, justMe: !filters.justMe, occasion: "" })
             }
