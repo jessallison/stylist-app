@@ -5,7 +5,7 @@ import WardrobeTab from "../components/WardrobeTab";
 import InspoTab from "../components/InspoTab";
 import StyleTab from "../components/StyleTab";
 import ProfileTab from "../components/ProfileTab";
-import { newId, uploadImage, deleteImage } from "../components/shared";
+import { newId, uploadImage, deleteImage, fetchImageAsDataUrl } from "../components/shared";
 import { CATEGORIES, COLOURS, SEASONS, FORMALITY } from "../lib/style-identity";
 
 const KEY_STORAGE = "stylist-admin-key";
@@ -77,6 +77,70 @@ export default function Home() {
     load(k);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupProgress, setBackupProgress] = useState(null); // { done, total }
+
+  // "Download data" only exports the JSON records - photos live separately
+  // in Redis and are only ever served one at a time via /api/image/{id}, so
+  // there's no single export that already includes them. This walks every
+  // photoId referenced anywhere in the data, pulls each photo down as a
+  // data URL, and bundles it all (records + an images map) into one JSON
+  // file for the browser to download. Best-effort per photo - one bad fetch
+  // shouldn't sink the whole backup.
+  async function backupWithPhotos() {
+    if (!data || backupBusy) return;
+    setBackupBusy(true);
+    setBackupProgress(null);
+    try {
+      const ids = new Set();
+      data.wardrobe.forEach((w) => w.photoId && ids.add(w.photoId));
+      data.inspo.forEach((i) => i.photoId && ids.add(i.photoId));
+      data.styleProfile.forEach((p) => p.photoId && ids.add(p.photoId));
+      data.looks.forEach((l) => l.anchorPhotoId && ids.add(l.anchorPhotoId));
+      const idList = Array.from(ids);
+      const images = {};
+      let failed = 0;
+      setBackupProgress({ done: 0, total: idList.length });
+      for (let i = 0; i < idList.length; i++) {
+        try {
+          images[idList[i]] = await fetchImageAsDataUrl(adminKey, idList[i]);
+        } catch {
+          failed++;
+        }
+        setBackupProgress({ done: i + 1, total: idList.length });
+      }
+      const payload = {
+        wardrobe: data.wardrobe,
+        inspo: data.inspo,
+        styleProfile: data.styleProfile,
+        looks: data.looks,
+        feedback: data.feedback,
+        settings: data.settings,
+        images,
+        exportedAt: new Date().toISOString(),
+      };
+      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `stylist-backup-photos-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      flash(
+        failed
+          ? `Backup downloaded - ${failed} photo${failed === 1 ? "" : "s"} couldn't be included`
+          : "Backup downloaded"
+      );
+    } catch {
+      flash("Backup failed - try again");
+    } finally {
+      setBackupBusy(false);
+      setBackupProgress(null);
+    }
+  }
 
   function flash(msg) {
     setToast(msg);
@@ -411,6 +475,16 @@ export default function Home() {
           <a href="/api/data" download="stylist-backup.json">
             Download data
           </a>
+          <button
+            type="button"
+            className="f-link-btn"
+            onClick={backupWithPhotos}
+            disabled={backupBusy || !data}
+          >
+            {backupBusy
+              ? `Backing up photos… (${backupProgress?.done ?? 0}/${backupProgress?.total ?? 0})`
+              : "Download data + photos"}
+          </button>
           <div className="f-powered">
             <span className="f-plus">+</span> Powered by Claude and Vercel
           </div>
