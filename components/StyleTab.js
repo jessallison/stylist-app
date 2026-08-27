@@ -407,6 +407,17 @@ export default function StyleTab({
               <option key={c}>{c}</option>
             ))}
           </select>
+          <button className="btn" onClick={() => run()} disabled={busy || !data.ai}>
+            {busy ? "Styling…" : "Style me"}
+          </button>
+        </div>
+        {/* Own row, right-aligned - kept apart from Style me so the two
+            aren't sitting side by side (they were easy to mix up when
+            adjacent). Deliberately not sharing .row: that's a flex-wrap
+            container, and depending on how many dropdown options push it
+            around, YOLO could still end up hugging Style me on a wrapped
+            line instead of sitting clearly apart from it. */}
+        <div className="row yolo-row">
           <button
             className={`chip ${filters.justMe ? "sel" : ""}`}
             onClick={() =>
@@ -414,10 +425,7 @@ export default function StyleTab({
             }
             title="No occasion - dressing purely for myself"
           >
-            ✦ Just me
-          </button>
-          <button className="btn" onClick={() => run()} disabled={busy || !data.ai}>
-            {busy ? "Styling…" : "Style me"}
+            ✦ YOLO
           </button>
         </div>
       </div>
@@ -453,10 +461,13 @@ export default function StyleTab({
             )
           )}
           {dismissed.size > 0 && dismissed.size === result.outfits.length && (
-            <div className="empty">
-              That was everything from this round - try &ldquo;Style me&rdquo; again for a fresh set.
-            </div>
+            <div className="empty">That was everything from this round.</div>
           )}
+          <div className="try-again-row">
+            <button className="chip" onClick={() => run()} disabled={busy}>
+              {busy ? "Styling…" : "None of these - try again"}
+            </button>
+          </div>
         </div>
       )}
 

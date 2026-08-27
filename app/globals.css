@@ -1062,6 +1062,12 @@ header.top {
   flex-wrap: wrap;
 }
 
+/* Kept on its own line, right-aligned, so it reads as a separate, secondary
+   toggle rather than sitting next to Style me where the two get mixed up. */
+.yolo-row {
+  justify-content: flex-end;
+}
+
 .row select {
   width: auto;
   flex: 1 1 auto;
@@ -1233,6 +1239,12 @@ header.top {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+.try-again-row {
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
 }
 
 /* Saved looks are browsed as a reference list rather than reviewed one at a
