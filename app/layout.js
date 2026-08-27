@@ -11,10 +11,10 @@ const playfair = Playfair_Display({
 });
 
 export const metadata = {
-  title: "Jess' Stylist",
+  title: "Personal Stylist",
   description: "What should I wear?",
   openGraph: {
-    title: "Jess' Stylist",
+    title: "Personal Stylist",
     description:
       "A personal styling and inspiration tool: outfit ideas from my own wardrobe.",
   },

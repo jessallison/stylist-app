@@ -114,7 +114,7 @@ export async function POST(request) {
   // Flow C's anchor is explicitly requested, so it doesn't have to pass the
   // `wearable` rules - it can be "wanted" (not bought yet) as well as owned.
   // The prompt below adjusts its wording accordingly so a wanted anchor
-  // isn't described as something she already owns.
+  // isn't described as something they already own.
   let anchor = null;
   if (flow === "C" && body.anchorId) {
     anchor = wardrobe.find((w) => w.id === body.anchorId);
@@ -175,7 +175,7 @@ export async function POST(request) {
   if (filters.colour) filterLines.push(`Colour focus: ${filters.colour}`);
   if (filters.justMe)
     filterLines.push(
-      `"Just me" - no occasion at all. Dress for her own pleasure: her Saturday-morning self, how she looks when nobody needs her to look like anything.`
+      `"Just me" - no occasion at all. Dress for their own pleasure: their Saturday-morning self, how they look when nobody needs them to look like anything.`
     );
 
   const flowText =
@@ -184,27 +184,27 @@ export async function POST(request) {
 ${
   inspoItem?.type === "flatlay"
     ? `The image is a FLAT-LAY moodboard: items laid out with no body, so it carries no silhouette or drape information. Use it only as an item-level signal - colour, texture, pairing logic. Do NOT infer proportion or fit from it.`
-    : `Extract the look's silhouette, proportion, layering and colour logic, then rebuild that feeling from her wardrobe. Match the spirit, not literal garment-for-garment copies.`
+    : `Extract the look's silhouette, proportion, layering and colour logic, then rebuild that feeling from their wardrobe. Match the spirit, not literal garment-for-garment copies.`
 }${inspoItem ? `\nHer own tags on this image: ${[inspoItem.occasion, inspoItem.season, (inspoItem.colours || []).join("/"), inspoItem.notes].filter(Boolean).join(", ") || "none"}` : ""}
 Also report what's genuinely missing to complete the look (the "gaps" field).`
       : flow === "C"
       ? `TASK - STYLE AN ANCHOR PIECE.
 ${
   anchor
-    ? `The required anchor is ${anchor.status === "wanted" ? "a piece she's considering buying - she doesn't own it yet" : "her own item"} ${anchor.id} (${anchor.name})${sourceImage ? " - photo attached" : ""}. EVERY outfit must include ${anchor.id} in item_ids.${anchor.status === "wanted" ? " Don't refer to it as something she already owns or wears - frame it as how it would work if she bought it." : ""}`
-    : `The attached image is something she has just bought (possibly a resale-listing screenshot - ignore any interface or price in the shot). Treat that item as the required anchor: every outfit is built around it plus her owned wardrobe. Since it isn't catalogued yet, put "NEW" in item_ids where it belongs and mention it by name in the notes.`
+    ? `The required anchor is ${anchor.status === "wanted" ? "a piece they're considering buying - they don't own it yet" : "their own item"} ${anchor.id} (${anchor.name})${sourceImage ? " - photo attached" : ""}. EVERY outfit must include ${anchor.id} in item_ids.${anchor.status === "wanted" ? " Don't refer to it as something they already own or wear - frame it as how it would work if they bought it." : ""}`
+    : `The attached image is something they have just bought (possibly a resale-listing screenshot - ignore any interface or price in the shot). Treat that item as the required anchor: every outfit is built around it plus their owned wardrobe. Since it isn't catalogued yet, put "NEW" in item_ids where it belongs and mention it by name in the notes.`
 }
 Show its range: vary the direction across outfits (e.g. one everyday, one dressed up, one unexpected).`
       : `TASK - SUGGEST OUTFITS from the wardrobe alone, honouring the filters below.`;
 
   const profileNote =
     styleProfile.length > 0
-      ? `\nShe keeps ${styleProfile.length} photos of worn outfits she was happy with (cold weather / warm weather / fancy)${
-          filters.justMe ? " - a few are attached as reference for how she actually dresses" : ""
+      ? `\nThey keep ${styleProfile.length} photos of worn outfits they were happy with (cold weather / warm weather / fancy)${
+          filters.justMe ? " - a few are attached as reference for how they actually dress" : ""
         }.`
       : "";
 
-  const system = `You are Jess's personal stylist. You know her wardrobe and her style identity from a styling session, and you build real, wearable outfits ONLY from the items listed - never invent items she doesn't own.
+  const system = `You are a personal stylist. You know their wardrobe and their style identity from a styling session, and you build real, wearable outfits ONLY from the items listed - never invent items they don't own.
 
 ${identityText(settings)}
 
@@ -213,10 +213,10 @@ RULES:
 - 2 to 6 items per outfit; complete looks (shoes/outerwear when the wardrobe has suitable ones), accessories encouraged.
 - Before returning an outfit, check it against the three words. If it doesn't honour at least two, fix it or drop it.
 - Where an outfit follows a CONFIRMED REGULAR, say which in "formula".
-- Gaps: if a look genuinely needs something she doesn't own, check the WANTED list first - if a wanted item fits, reference it by id ("you've already got your eye on this") instead of a generic suggestion. Only note real gaps, not nice-to-haves.
+- Gaps: if a look genuinely needs something they don't own, check the WANTED list first - if a wanted item fits, reference it by id ("you've already got your eye on this") instead of a generic suggestion. Only note real gaps, not nice-to-haves.
 - Voice: warm, specific, stylist-to-friend. British English. No filler.
-${avoidLines.length ? `- She's said no before to these specific pairings - avoid combining them in the same outfit unless there's genuinely no other way to build a good look:\n${avoidLines.join("\n")}` : ""}
-${lovedLines.length ? `- She's responded well to these pairings before - it's fine to lean into the spirit of them where it genuinely fits, not force them in:\n${lovedLines.join("\n")}` : ""}
+${avoidLines.length ? `- They've said no before to these specific pairings - avoid combining them in the same outfit unless there's genuinely no other way to build a good look:\n${avoidLines.join("\n")}` : ""}
+${lovedLines.length ? `- They've responded well to these pairings before - it's fine to lean into the spirit of them where it genuinely fits, not force them in:\n${lovedLines.join("\n")}` : ""}
 
 Reply with ONLY a JSON object:
 {
@@ -225,7 +225,7 @@ Reply with ONLY a JSON object:
       "title": "short evocative name",
       "item_ids": ["id", ...],
       "formula": "matching REGULAR or empty string",
-      "why": "one or two sentences on why this works and how it fits her three words",
+      "why": "one or two sentences on why this works and how it fits their three words",
       "styling_notes": "tuck/layer/roll details, one sentence, or empty string",
       "gaps": [{ "need": "what's missing", "wanted_id": "id from WANTED list or empty string" }]
     }
@@ -246,8 +246,8 @@ ${flowText}`;
   const content = [];
   const srcBlock = imageBlock(sourceImage);
   if (srcBlock && (flow === "A" || flow === "C")) content.push(srcBlock);
-  // "Just me" gets a few worn-outfit photos as grounding for how she really
-  // dresses. Best-effort: a photo that won't load just gets skipped.
+  // "Just me" gets a few worn-outfit photos as grounding for how they really
+  // dress. Best-effort: a photo that won't load just gets skipped.
   if (flow === "B" && filters.justMe) {
     for (const p of styleProfile.slice(0, 3)) {
       try {

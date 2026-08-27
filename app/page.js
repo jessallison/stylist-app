@@ -353,7 +353,7 @@ export default function Home() {
       <div className="wrap">
         <LoginModal
           noClose
-          title="Jess' Stylist is private"
+          title="Personal Stylist is private"
           onSuccess={(pw) => {
             localStorage.setItem(KEY_STORAGE, pw);
             setAdminKey(pw);
@@ -385,7 +385,7 @@ export default function Home() {
     <div className="wrap">
       <header className="top">
         <div className="brand">
-          <h1 className="b-name">Jess&rsquo; Stylist</h1>
+          <h1 className="b-name">Personal Stylist</h1>
           <span className="f-plus">+</span>
           <span className="b-divider" />
           <a
@@ -449,7 +449,7 @@ export default function Home() {
         </button>
         <div className="f-main">
           <div className="f-title-row">
-            <span className="f-name">Jess&rsquo; Stylist</span>
+            <span className="f-name">Personal Stylist</span>
             <span className="f-plus">+</span>
             <a
               className="f-by"

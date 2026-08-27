@@ -1192,6 +1192,21 @@ header.top {
   gap: 18px;
 }
 
+/* Saved looks are browsed as a reference list rather than reviewed one at a
+   time like fresh suggestions, so two columns reads better once there's
+   room - stays single-column on narrow screens so cards don't get cramped. */
+.results.saved-looks {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+@media (min-width: 700px) {
+  .results.saved-looks {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .stylist-note {
   font-family: var(--serif);
   font-style: italic;

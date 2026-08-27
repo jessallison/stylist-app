@@ -54,7 +54,7 @@ export async function POST(request) {
     );
   }
 
-  // Suggest from her actual, current vocabulary - not the seed defaults -
+  // Suggest from their actual, current vocabulary - not the seed defaults -
   // so a word added after setup (e.g. a new pattern or material tag) shows
   // up in AI suggestions right away instead of silently never surfacing.
   let vocab = DEFAULT_SETTINGS.vocab;

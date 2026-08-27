@@ -458,7 +458,7 @@ export default function StyleTab({
             Suggestions you&rsquo;ve kept - outfits reference the wardrobe, so
             photos stay current.
           </div>
-          <div className="results">
+          <div className="results saved-looks">
             {[...looks]
               .sort((a, b) => b.savedAt - a.savedAt)
               .map((l) => (
