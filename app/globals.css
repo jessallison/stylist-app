@@ -559,7 +559,14 @@ header.top {
   border-bottom: 1px solid var(--line);
 }
 
-.f-opt {
+/* ".f-opt.f-opt" (repeated class) is a specificity bump, not a typo: plain
+   ".f-opt" loses to ".form label" further down (extra type selector beats a
+   lone class, so it silently won on display/margin/font-size wherever this
+   label sits inside .form) - which flattened the row to display:block and
+   let the checkbox's native inline margin crowd the label text against it.
+   FilterGroup in shared.js also uses .f-opt outside any .form, so the fix
+   can't lean on an ancestor scope - it has to win on its own everywhere. */
+.f-opt.f-opt {
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -567,9 +574,10 @@ header.top {
   line-height: 1.4;
   padding: 5px 0;
   cursor: pointer;
+  margin-bottom: 0;
 }
 
-.f-opt input {
+.f-opt.f-opt input {
   accent-color: var(--ink);
   cursor: pointer;
   /* Nudge down to sit level with the label's first line, since the row
@@ -904,6 +912,12 @@ header.top {
 
 .badge.notsize {
   border-style: dashed;
+}
+
+.badge.regular {
+  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .badge.formula {

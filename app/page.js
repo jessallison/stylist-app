@@ -75,17 +75,34 @@ export default function Home() {
     setTimeout(() => setToast(null), 2600);
   }
 
-  // save("wardrobe", nextArray) or save("inspo", (cur) => next) - the
-  // functional form keeps concurrent multi-photo uploads from clobbering
-  // each other. Rolls back local state if the server rejects the write.
+  // save("wardrobe", nextArray) or save("inspo", (cur) => next). Rolls back
+  // local state if the server rejects the write.
+  //
+  // `computed` is deliberately worked out here, from the `data` already in
+  // scope, rather than inside the setData() updater below. It used to be
+  // computed inside that updater (matching `d[type]` instead of the outer
+  // `data[type]`) on the theory that a function update always sees the
+  // freshest state - but React doesn't guarantee an updater runs before the
+  // very next line reads a variable it assigned, so `computed` would
+  // intermittently still be undefined when the fetch body was built,
+  // failing the save outright with no visible cause. That's what broke a
+  // plain first-time wardrobe save on 27 Aug: every tab now backfills photo
+  // hashes on mount (see backfillHashes in shared.js), which fires a
+  // setData of its own in the background and was often enough to trigger
+  // the timing gap on an ordinary save shortly after page load.
+  //
+  // Every call site here either fires once per user action or awaits each
+  // save() fully before the next (see the multi-photo loop in PhotoButton),
+  // so `data` in scope is never more than one render behind - there's
+  // nothing left for the functional form to protect against. A future call
+  // site that needs to fire save() several times without an await between
+  // each one should bypass this helper the same way StyleTab's feedback
+  // recorder and backfillHashes do: compute the full next value as a plain
+  // value first, then setData and POST from that directly.
   async function save(type, next) {
-    let prev;
-    let computed;
-    setData((d) => {
-      prev = d[type];
-      computed = typeof next === "function" ? next(d[type]) : next;
-      return { ...d, [type]: computed };
-    });
+    const prev = data[type];
+    const computed = typeof next === "function" ? next(prev) : next;
+    setData((d) => ({ ...d, [type]: computed }));
     let res;
     try {
       res = await fetch("/api/save", {

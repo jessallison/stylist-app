@@ -23,6 +23,8 @@ import {
   backfillHashes,
   DuplicatesPanel,
   DupesToggle,
+  rotateDataUrl,
+  fetchImageAsDataUrl,
 } from "./shared";
 import CompositionChart from "./CompositionChart";
 
@@ -37,6 +39,11 @@ const EMPTY_FORM = {
   status: "owned",
   fitStatus: "current",
   needsStyling: false,
+  // Named "heavy rotation" rather than "regular" on purpose - settings.regulars
+  // is already a list of confirmed outfit formulas shown on the Profile page,
+  // and this is a different thing entirely: a per-item "I wear this a lot"
+  // flag set at add time, not an outfit combination.
+  heavyRotation: false,
   notes: "",
 };
 
@@ -80,6 +87,7 @@ export default function WardrobeTab({
   const [flags, setFlags] = useState(new Set());
   const [photoHash, setPhotoHash] = useState(null);
   const [dupMatch, setDupMatch] = useState(null);
+  const [rotating, setRotating] = useState(false);
   const [showDuplicates, setShowDuplicates] = useState(false);
 
   // One-time backfill so items added before duplicate detection existed get
@@ -197,6 +205,7 @@ export default function WardrobeTab({
       status: item.status || "owned",
       fitStatus: item.fitStatus || "current",
       needsStyling: !!item.needsStyling,
+      heavyRotation: !!item.heavyRotation,
       notes: item.notes || "",
     });
     setPhoto(null);
@@ -239,6 +248,7 @@ export default function WardrobeTab({
       status: form.status,
       fitStatus: form.fitStatus,
       needsStyling: form.needsStyling,
+      heavyRotation: form.heavyRotation,
       notes: form.notes.trim(),
       addedAt: original?.addedAt || Date.now(),
     };
@@ -341,6 +351,30 @@ export default function WardrobeTab({
   if (editingId !== null) {
     const isNew = editingId === "new";
     const original = isNew ? null : wardrobe.find((w) => w.id === editingId);
+
+    // Rotates whatever's currently showing 90° clockwise. If a new/replaced
+    // photo is pending in state, turn that; otherwise pull the saved photo
+    // down first. Either way it lands in `photo`, so Save uploads the turned
+    // version as normal - the rotation is baked into the pixels, not a CSS
+    // transform that would only hold in this app.
+    async function handleRotate() {
+      if (!requireUnlock()) return;
+      setRotating(true);
+      try {
+        const source = photo || (original?.photoId ? await fetchImageAsDataUrl(adminKey, original.photoId) : null);
+        if (!source) return;
+        const rotated = await rotateDataUrl(source, 90);
+        setPhoto(rotated);
+        const h = await hashDataUrl(rotated);
+        setPhotoHash(h);
+        setDupMatch(wardrobe.find((w) => w.hash === h && w.id !== editingId) || null);
+      } catch (e) {
+        flash(e.message || "Couldn't rotate that photo");
+      } finally {
+        setRotating(false);
+      }
+    }
+
     return (
       <form className="form" onSubmit={submit}>
         <div className="form-photo-row">
@@ -361,6 +395,17 @@ export default function WardrobeTab({
               }}
               onError={flash}
             />
+            {(photo || original?.photoId) && (
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={handleRotate}
+                disabled={rotating}
+                style={{ marginTop: 8, display: "block" }}
+              >
+                {rotating ? "Rotating…" : "↻ Rotate"}
+              </button>
+            )}
             {bgBusy && <div className="count" style={{ marginTop: 8 }}>Removing background…</div>}
             {tagging && <div className="count" style={{ marginTop: 8 }}>Suggesting tags…</div>}
           </div>
@@ -474,6 +519,14 @@ export default function WardrobeTab({
               />
               I don&rsquo;t know how to wear this yet
             </label>
+            <label className="f-opt">
+              <input
+                type="checkbox"
+                checked={form.heavyRotation}
+                onChange={(e) => setForm({ ...form, heavyRotation: e.target.checked })}
+              />
+              I wear this a lot
+            </label>
           </div>
         )}
         <div>
@@ -538,6 +591,7 @@ export default function WardrobeTab({
     if (skip !== "flags") {
       if (flags.has("needs") && !w.needsStyling) return false;
       if (flags.has("notsize") && w.fitStatus !== "not_current") return false;
+      if (flags.has("regular") && !w.heavyRotation) return false;
     }
     return true;
   }
@@ -840,6 +894,23 @@ export default function WardrobeTab({
           </div>
 
           <div className="bulk-row">
+            <button
+              className="chip"
+              disabled={bulkSelected.size === 0}
+              onClick={() => bulkApply(() => ({ heavyRotation: true }), "Flagged wear a lot")}
+            >
+              Flag wear a lot
+            </button>
+            <button
+              className="chip"
+              disabled={bulkSelected.size === 0}
+              onClick={() => bulkApply(() => ({ heavyRotation: false }), "Cleared wear a lot")}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className="bulk-row">
             <button className="btn danger" disabled={bulkSelected.size === 0} onClick={bulkDelete}>
               Delete selected
             </button>
@@ -906,8 +977,14 @@ export default function WardrobeTab({
               [
                 ["needs", "Needs styling"],
                 ["notsize", "Not current size"],
+                ["regular", "Wear a lot"],
               ],
-              (w, v) => (v === "needs" ? w.needsStyling : w.fitStatus === "not_current")
+              (w, v) =>
+                v === "needs"
+                  ? w.needsStyling
+                  : v === "notsize"
+                  ? w.fitStatus === "not_current"
+                  : w.heavyRotation
             )}
             selected={flags}
             onToggle={(v) => toggleIn(flags, v, setFlags)}
@@ -970,6 +1047,7 @@ export default function WardrobeTab({
                 {w.fitStatus === "not_current" && (
                   <span className="badge notsize">not current size</span>
                 )}
+                {w.heavyRotation && <span className="badge regular">wear a lot</span>}
                 {(w.tags || []).map((t) => (
                   <span key={t} className="badge soft">
                     {t}

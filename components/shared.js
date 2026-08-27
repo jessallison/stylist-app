@@ -215,6 +215,51 @@ export function PhotoButton({ label, onPhoto, onError, multiple = false, classNa
   );
 }
 
+// Rotate a data URL 90 degrees clockwise, baking the turn into the pixels
+// (not just a CSS transform) so it sticks once saved. Re-encodes as JPEG at
+// the same quality fileToDataUrl already uses, since this always runs on an
+// image that's already been through that pipeline once.
+export function rotateDataUrl(dataUrl, degrees = 90) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onerror = () => reject(new Error("Couldn't rotate that photo"));
+    img.onload = () => {
+      try {
+        const swap = ((degrees / 90) % 2 + 2) % 2 === 1;
+        const canvas = document.createElement("canvas");
+        canvas.width = swap ? img.height : img.width;
+        canvas.height = swap ? img.width : img.height;
+        const ctx = canvas.getContext("2d");
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((degrees * Math.PI) / 180);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      } catch (e) {
+        reject(e);
+      }
+    };
+    img.src = dataUrl;
+  });
+}
+
+// Pull an already-saved photo down as a data URL so it can be rotated (or
+// otherwise re-processed) client-side, same as a freshly-picked file would
+// be. Needed because rotating an existing item's photo - one nobody just
+// picked from the file input - starts from a photoId, not a data URL.
+export async function fetchImageAsDataUrl(adminKey, photoId) {
+  const res = await fetch(`/api/image/${photoId}`, {
+    headers: { "x-admin-key": adminKey || "" },
+  });
+  if (!res.ok) throw new Error("Couldn't load that photo");
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Couldn't read that photo"));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function Thumb({ photoId, dataUrl, alt = "", className = "thumb" }) {
   const src = dataUrl || (photoId ? `/api/image/${photoId}` : null);
   if (!src) return <div className={`${className} thumb-empty`}>no photo</div>;
