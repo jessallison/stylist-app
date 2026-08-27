@@ -1364,10 +1364,35 @@ header.top {
   color: var(--ink);
   border-left: 2px solid var(--alert);
   padding: 4px 0 4px 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .gap-wanted {
   color: var(--alert);
+}
+
+/* Only shown on saved looks, where gaps are a snapshot frozen at save time
+   and can go stale once the missing piece is actually bought - see
+   OutfitCard's onDismissGap comment. Same quiet-link treatment as the other
+   card-actions links. */
+.gap-dismiss {
+  flex-shrink: 0;
+  border: none;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.gap-dismiss:hover {
+  color: var(--ink);
 }
 
 /* --- Profile tab ------------------------------------------------------------ */

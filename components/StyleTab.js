@@ -271,6 +271,16 @@ export default function StyleTab({
     if (ok && look.anchorPhotoId) deleteImage(adminKey, look.anchorPhotoId);
   }
 
+  async function dismissGap(lookId, gapIndex) {
+    await save("looks", (cur) =>
+      (cur || []).map((l) =>
+        l.id === lookId
+          ? { ...l, gaps: (l.gaps || []).filter((_, i) => i !== gapIndex) }
+          : l
+      )
+    );
+  }
+
   const looks = data.looks || [];
 
   const flowBtn = (id, label, sub) => (
@@ -503,6 +513,7 @@ export default function StyleTab({
                   o={l}
                   byId={byId}
                   newThumb={{ photoId: l.anchorPhotoId }}
+                  onDismissGap={(gapIndex) => dismissGap(l.id, gapIndex)}
                   actions={
                     <button className="chip" onClick={() => removeLook(l)}>
                       Remove
@@ -518,8 +529,13 @@ export default function StyleTab({
 }
 
 // One outfit, as a card - used for fresh suggestions and saved looks alike.
-// `newThumb` is the image for an uncatalogued "NEW" anchor piece.
-function OutfitCard({ o, byId, newThumb, actions }) {
+// `newThumb` is the image for an uncatalogued "NEW" anchor piece. `onDismissGap`
+// is only passed for saved looks - gaps are a snapshot frozen at save time
+// (see saveLook), so once you've actually bought the missing piece there's no
+// way to tell automatically; dismissing just clears the stale note. Fresh,
+// unsaved suggestions don't get a dismiss control - those gaps are
+// regenerated on every run anyway.
+function OutfitCard({ o, byId, newThumb, actions, onDismissGap }) {
   return (
     <div className="card outfit-card">
       <div className="outfit-head">
@@ -551,13 +567,28 @@ function OutfitCard({ o, byId, newThumb, actions }) {
         <div className="gaps">
           {o.gaps.map((g, gi) => (
             <div key={gi} className="gap">
-              Missing: {g.need}
-              {g.wanted_id && byId[g.wanted_id] && (
-                <span className="gap-wanted">
-                  {" "}
-                  - you&rsquo;ve already got your eye on{" "}
-                  <b>{byId[g.wanted_id].name}</b>
-                </span>
+              <span>
+                Missing: {g.need}
+                {g.wanted_id && byId[g.wanted_id] && (
+                  <span className="gap-wanted">
+                    {" "}
+                    - you&rsquo;ve already got your eye on{" "}
+                    <b>{byId[g.wanted_id].name}</b>
+                  </span>
+                )}
+              </span>
+              {onDismissGap && (
+                <button
+                  type="button"
+                  className="chip gap-dismiss"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDismissGap(gi);
+                  }}
+                  title="I've got this now - clear the note"
+                >
+                  Got it
+                </button>
               )}
             </div>
           ))}
