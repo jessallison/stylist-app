@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import WardrobeTab from "../components/WardrobeTab";
 import InspoTab from "../components/InspoTab";
 import StyleTab from "../components/StyleTab";
@@ -12,6 +12,14 @@ const KEY_STORAGE = "stylist-admin-key";
 
 export default function Home() {
   const [data, setData] = useState(null);
+  // Always-current mirror of `data`, for the rare async task (backfillHashes)
+  // that starts from a snapshot, does real work in the background, and needs
+  // to read whatever's actually in state - not what was there when it
+  // started - right before it writes back. See backfillHashes in shared.js.
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
   const [loadErr, setLoadErr] = useState(null);
   const [tab, setTab] = useState("style");
   const [adminKey, setAdminKey] = useState(null);
@@ -141,12 +149,20 @@ export default function Home() {
       localStorage.removeItem(KEY_STORAGE);
       setAdminKey(null);
       // Clear the cookie server-side, then reload - if a password is set
-      // this drops straight back to the gate.
-      await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logout: true }),
-      });
+      // this drops straight back to the gate. Best-effort: if the network's
+      // down mid-logout, the local key is still cleared (so the app doesn't
+      // read as unlocked when it isn't), and load(null) still runs so the
+      // screen doesn't keep showing data behind a lock that no longer holds
+      // a valid cookie server-side.
+      try {
+        await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ logout: true }),
+        });
+      } catch {
+        /* cookie clear is best-effort - local state still resets below */
+      }
       load(null);
     } else {
       setShowLogin(true);
@@ -292,6 +308,7 @@ export default function Home() {
     // Direct state access for the rare call site that can't safely go
     // through save() - see backfillHashes in shared.js for why.
     setData,
+    dataRef,
     unlocked,
     needAuth: () => setShowLogin(true),
     adminKey,
@@ -425,14 +442,22 @@ function LoginModal({ onClose, onSuccess, noClose = false, title = "Unlock" }) {
     e.preventDefault();
     setBusy(true);
     setErr(null);
-    const res = await fetch("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: pw }),
-    });
-    setBusy(false);
-    if (res.ok) onSuccess(pw);
-    else setErr("Wrong password");
+    // Every other fetch in this app is wrapped like this - this one wasn't,
+    // so a dropped connection mid-login threw past setBusy(false) and left
+    // the button reading "Checking…" forever with no way out but a refresh.
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pw }),
+      });
+      if (res.ok) onSuccess(pw);
+      else setErr("Wrong password");
+    } catch {
+      setErr("No connection - try again");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

@@ -31,6 +31,7 @@ export default function InspoTab({
   data,
   save,
   setData,
+  dataRef,
   unlocked,
   needAuth,
   adminKey,
@@ -60,7 +61,7 @@ export default function InspoTab({
   useEffect(() => {
     if (backfillRan.current) return;
     backfillRan.current = true;
-    backfillHashes("inspo", inspo, setData, adminKey);
+    backfillHashes("inspo", inspo, setData, adminKey, dataRef);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

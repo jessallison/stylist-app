@@ -341,16 +341,21 @@ export function groupDuplicates(items) {
 // One-time backfill for items saved before hashing existed. Fetches each
 // missing photo once and writes all the new hashes back in a single save.
 //
-// Deliberately bypasses the shared save() helper: every tab stays mounted
-// at once (display:none, not unmounted), so all three tabs' backfills fire
-// together on first load - and save() computes its POST body *inside* a
-// setData updater, which React doesn't guarantee runs before the very next
-// line reads it back out. A single call usually gets away with it; several
-// landing close together is exactly what surfaced the same bug in the
-// outfit-feedback recorder (see StyleTab). The fix there was the same as
-// here: compute the full next value as a plain value first, then setData
-// and POST from that - nothing left for timing to race.
-export async function backfillHashes(type, items, setData, adminKey) {
+// Deliberately bypasses the shared save() helper - it's best-effort (no
+// rollback, no error toast, no login-modal-on-401 needed for a silent
+// housekeeping write) and every tab stays mounted at once, so backfills
+// for wardrobe/inspo/styleProfile can all be in flight together.
+//
+// `items` is a snapshot from whenever the caller's one-time effect fired -
+// by the time the hash fetches above finish (a Promise.all over every
+// un-hashed photo, which can take a couple of seconds), it can be stale.
+// Writing `items` straight back would silently drop anything added, and
+// resurrect anything removed, during that window - real data loss, not a
+// display glitch, since this write also overwrites the server copy. `dataRef`
+// is a ref page.js keeps in sync with live state on every render, so it's
+// read fresh here, right before the write, instead of trusting the snapshot
+// the backfill started with.
+export async function backfillHashes(type, items, setData, adminKey, dataRef) {
   const missing = items.filter((it) => it.photoId && !it.hash);
   if (!missing.length) return;
   const hashes = {};
@@ -368,7 +373,8 @@ export async function backfillHashes(type, items, setData, adminKey) {
     })
   );
   if (!Object.keys(hashes).length) return;
-  const next = items.map((it) => (hashes[it.id] ? { ...it, hash: hashes[it.id] } : it));
+  const current = (dataRef?.current?.[type]) || items;
+  const next = current.map((it) => (hashes[it.id] ? { ...it, hash: hashes[it.id] } : it));
   setData((d) => ({ ...d, [type]: next }));
   try {
     await fetch("/api/save", {

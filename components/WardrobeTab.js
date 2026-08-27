@@ -51,6 +51,7 @@ export default function WardrobeTab({
   data,
   save,
   setData,
+  dataRef,
   unlocked,
   needAuth,
   adminKey,
@@ -96,7 +97,7 @@ export default function WardrobeTab({
   useEffect(() => {
     if (backfillRan.current) return;
     backfillRan.current = true;
-    backfillHashes("wardrobe", wardrobe, setData, adminKey);
+    backfillHashes("wardrobe", wardrobe, setData, adminKey, dataRef);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
