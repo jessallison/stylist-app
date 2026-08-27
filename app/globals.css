@@ -997,7 +997,7 @@ header.top {
 
 .card-actions {
   display: flex;
-  gap: 6px;
+  gap: 18px;
   flex-wrap: wrap;
   margin-top: auto;
   padding-top: 12px;
