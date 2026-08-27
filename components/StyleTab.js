@@ -492,8 +492,7 @@ export default function StyleTab({
 
       {flow !== "M" && !result && !busy && !error && owned.length < 2 && (
         <div className="empty">
-          Add a few wardrobe pieces first - the engine only dresses you in
-          things you own.
+          Add a few wardrobe pieces first
         </div>
       )}
 
@@ -680,8 +679,7 @@ function ManualBuilder({
 
       {owned.length === 0 ? (
         <div className="empty">
-          No currently-wearable owned pieces yet - add some in the Wardrobe
-          tab first.
+          Add a few wardrobe pieces first
         </div>
       ) : (
         <div className="grid">

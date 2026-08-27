@@ -1199,8 +1199,7 @@ export default function WardrobeTab({
 
       {wardrobe.length === 0 && (
         <div className="empty">
-          The wardrobe is empty. Snap or screenshot each capsule piece and add it
-          with <b>+ Add from photo</b> - tags get suggested for you.
+          Your wardrobe is empty. Add photos of your clothing to get started.
         </div>
       )}
 

@@ -1448,7 +1448,7 @@ header.top {
   justify-content: center;
   background: var(--tile);
   color: var(--muted);
-  font-size: 0.62rem;
+  font-size: 0.8rem;
   text-align: center;
   line-height: 1.5;
   padding: 12px;

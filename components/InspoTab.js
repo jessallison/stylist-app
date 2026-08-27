@@ -456,8 +456,8 @@ export default function InspoTab({
 
       {inspo.length === 0 && (
         <div className="empty">
-          No inspiration saved yet. Add screenshots with <b>+ Add images</b> -
-          each one gets auto-sorted into outfit photo, flat-lay or item.
+          This is where your inspiration clothes live, currently a blank
+          canvas! Try adding some Pinterest pins or photos you&rsquo;ve saved.
         </div>
       )}
 
