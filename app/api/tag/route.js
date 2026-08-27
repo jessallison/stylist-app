@@ -1,4 +1,4 @@
-import { checkAuth } from "../../../lib/store";
+import { checkAuth, getData } from "../../../lib/store";
 import { claude, hasClaude, imageBlock, parseJson } from "../../../lib/claude";
 import {
   CATEGORIES,
@@ -54,6 +54,17 @@ export async function POST(request) {
     );
   }
 
+  // Suggest from her actual, current vocabulary - not the seed defaults -
+  // so a word added after setup (e.g. a new pattern or material tag) shows
+  // up in AI suggestions right away instead of silently never surfacing.
+  let vocab = DEFAULT_SETTINGS.vocab;
+  try {
+    const settings = await getData("settings");
+    if (settings?.vocab?.length) vocab = settings.vocab;
+  } catch (e) {
+    console.error("tag: couldn't load settings, falling back to default vocab", e);
+  }
+
   const prompt =
     kind === "wardrobe"
       ? `This is a photo of one clothing item, accessory or pair of shoes for a personal wardrobe catalogue (it may be a product listing screenshot - ignore any text, price or interface in the shot and tag the item itself).
@@ -66,7 +77,7 @@ Reply with ONLY a JSON object, no other text:
   "colours": array of 1-3 from [${list(COLOURS)}],
   "season": one of [${list(SEASONS)}],
   "formality": one of [${list(FORMALITY)}],
-  "tags": array of 0-3 from [${list(DEFAULT_SETTINGS.vocab)}] that clearly apply,
+  "tags": array of 0-3 from [${list(vocab)}] that clearly apply,
   "notes": "one short sentence on anything useful for styling (fabric, cut, standout detail), or empty string"
 }`
       : `This is a saved fashion-inspiration image. Classify and tag it.
@@ -82,7 +93,7 @@ Reply with ONLY a JSON object, no other text:
   "occasion": one of [${list(OCCASIONS)}] or "" if none obviously applies,
   "season": one of [${list(SEASONS)}],
   "colours": array of 1-3 dominant colours from [${list(COLOURS)}],
-  "tags": array of 0-3 from [${list(DEFAULT_SETTINGS.vocab)}] that clearly apply to the vibe of this image,
+  "tags": array of 0-3 from [${list(vocab)}] that clearly apply to the vibe of this image,
   "description": "one sentence on what the look or item is",
   "productName": "if type is product: a short natural name for the item, else empty string"
 }`;

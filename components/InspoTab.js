@@ -22,6 +22,7 @@ import {
   groupDuplicates,
   backfillHashes,
   DuplicatesPanel,
+  DupesToggle,
 } from "./shared";
 
 const TYPE_LABEL = Object.fromEntries(INSPO_TYPES);
@@ -356,18 +357,17 @@ export default function InspoTab({
         >
           Filters{activeCount ? ` (${activeCount})` : ""}
         </button>
-        <button
-          className={`btn ghost ${dupGroups.length ? "has-filters" : ""}`}
-          onClick={() => setShowDuplicates(!showDuplicates)}
-        >
-          Duplicates{dupGroups.length ? ` (${dupGroups.length})` : ""}
-        </button>
         <PhotoButton
           className="btn"
           label={busy ? `Adding… (${busy})` : "+ Add images"}
           onPhoto={addPhoto}
           onError={flash}
           multiple
+        />
+        <DupesToggle
+          count={dupGroups.length}
+          open={showDuplicates}
+          onToggle={() => setShowDuplicates(!showDuplicates)}
         />
         <TileToggle size={tileSize} onChange={setTileSize} />
       </div>

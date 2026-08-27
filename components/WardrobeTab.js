@@ -22,6 +22,7 @@ import {
   groupDuplicates,
   backfillHashes,
   DuplicatesPanel,
+  DupesToggle,
 } from "./shared";
 import CompositionChart from "./CompositionChart";
 
@@ -636,12 +637,6 @@ export default function WardrobeTab({
           Composition
         </button>
         <button
-          className={`btn ghost ${dupGroups.length ? "has-filters" : ""}`}
-          onClick={() => setShowDuplicates(!showDuplicates)}
-        >
-          Duplicates{dupGroups.length ? ` (${dupGroups.length})` : ""}
-        </button>
-        <button
           className={`btn ghost ${bulkMode ? "has-filters" : ""}`}
           onClick={() => {
             if (bulkMode) return exitBulk();
@@ -656,6 +651,11 @@ export default function WardrobeTab({
           label="+ Add from photo"
           onPhoto={startNew}
           onError={flash}
+        />
+        <DupesToggle
+          count={dupGroups.length}
+          open={showDuplicates}
+          onToggle={() => setShowDuplicates(!showDuplicates)}
         />
         <TileToggle size={tileSize} onChange={setTileSize} />
       </div>

@@ -710,6 +710,54 @@ header.top {
   height: 15px;
 }
 
+/* Duplicates toggle - icon-only and deliberately quiet, sitting with the
+   view controls rather than the Filters/Composition/Bulk edit pill row. */
+.dupes-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.dupes-btn:hover {
+  color: var(--ink);
+}
+
+.dupes-btn.on {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.dupes-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.dupes-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 0.6rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 .grid .card {
   margin-bottom: 0;
 }

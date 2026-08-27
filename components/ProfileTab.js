@@ -13,6 +13,7 @@ import {
   groupDuplicates,
   backfillHashes,
   DuplicatesPanel,
+  DupesToggle,
 } from "./shared";
 
 // Style profile: worn-outfit photos exported by hand from Stylebook's
@@ -335,12 +336,11 @@ export default function ProfileTab({
           onError={flash}
           multiple
         />
-        <button
-          className={`btn ghost ${dupGroups.length ? "has-filters" : ""}`}
-          onClick={() => setShowDuplicates(!showDuplicates)}
-        >
-          Duplicates{dupGroups.length ? ` (${dupGroups.length})` : ""}
-        </button>
+        <DupesToggle
+          count={dupGroups.length}
+          open={showDuplicates}
+          onToggle={() => setShowDuplicates(!showDuplicates)}
+        />
         <TileToggle size={tileSize} onChange={setTileSize} />
       </div>
 

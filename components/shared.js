@@ -141,6 +141,35 @@ export function TileToggle({ size, onChange }) {
   );
 }
 
+// Icon-only toggle for the duplicates panel - deliberately quieter than the
+// primary toolbar actions (Filters, Composition, Bulk edit). Checking for
+// duplicates is housekeeping, not something done every session, so it sits
+// with the view controls rather than the pill row: a plain outline icon,
+// a small neutral count badge only when there's something to see, and the
+// same "currently open" highlight the tile-size toggle uses - no new colour
+// language, just the existing active-state convention.
+export function DupesToggle({ count, open, onToggle }) {
+  return (
+    <button
+      type="button"
+      className={`dupes-btn ${open ? "on" : ""}`}
+      onClick={onToggle}
+      aria-label="Duplicates"
+      title={count ? `${count} possible duplicate${count === 1 ? "" : "s"}` : "Check for duplicates"}
+    >
+      <svg viewBox="0 0 16 16" fill="none">
+        <rect x="5" y="1" width="9" height="10" rx="1" stroke="currentColor" />
+        <path
+          d="M3 5v6.5A1.5 1.5 0 0 0 4.5 13H10"
+          stroke="currentColor"
+          strokeLinecap="round"
+        />
+      </svg>
+      {count > 0 && <span className="dupes-badge">{count}</span>}
+    </button>
+  );
+}
+
 export function FilterGroup({ title, options, selected, onToggle }) {
   return (
     <div className="f-group">
