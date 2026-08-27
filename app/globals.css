@@ -1098,6 +1098,30 @@ header.top {
   margin-left: auto;
 }
 
+/* On phone widths the three capped-width selects above wrap unevenly across
+   two-and-a-bit lines instead of forming a clean bar. Switch to a two-column
+   grid instead: each select spans both columns (one per line, full width),
+   then Style me and YOLO share the final line side by side. */
+@media (max-width: 480px) {
+  .filter-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .filter-row select {
+    grid-column: 1 / -1;
+    flex: none;
+    width: 100%;
+  }
+  .filter-row .btn {
+    grid-column: 1;
+  }
+  .filter-row .yolo-btn {
+    grid-column: 2;
+    margin-left: 0;
+  }
+}
+
 .form {
   background: var(--card);
   border: 1px solid var(--line);

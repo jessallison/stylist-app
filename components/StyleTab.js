@@ -49,6 +49,9 @@ export default function StyleTab({
   // reset whenever a fresh set of suggestions comes back.
   const [dismissed, setDismissed] = useState(new Set());
   const ranRequest = useRef(null);
+  // Scroll target for the loading/results block below - see the comment in
+  // run() for why this replaced scrolling to the page's absolute top.
+  const resultsAnchorRef = useRef(null);
   // Accumulates feedback entries recorded this session, seeded from the
   // loaded data. Not React state - nothing reads it back for display - but
   // it needs to be readable and updatable synchronously, immediately, so
@@ -108,11 +111,21 @@ export default function StyleTab({
     setError(null);
     setResult(null);
     setDismissed(new Set());
-    // The loading state (and the result once it lands) renders near the top
-    // of this tab - if the page is scrolled down (browsing saved looks,
-    // say), jump back up so it's actually visible rather than happening
-    // off-screen above the fold.
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Scroll to the loading state (and the result once it lands), not the
+    // page's absolute top - on mobile the flow tiles and filter row above it
+    // are tall enough that scrolling to top still left the loading message
+    // below the fold. Scrolling the anchor into view works regardless of
+    // how much sits above it, on any screen size.
+    //
+    // The setTimeout is load-bearing, not decorative: calling scrollIntoView
+    // synchronously here - in the same tick as the setState calls above -
+    // silently no-ops in Chromium. Deferring it one tick, after React has
+    // flushed the re-render those setState calls trigger, is what actually
+    // makes it scroll. Confirmed empirically (Playwright, mobile viewport)
+    // before landing this - without the deferral the page never moved.
+    setTimeout(() => {
+      resultsAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
     try {
       const res = await fetch("/api/suggest", {
         method: "POST",
@@ -450,6 +463,7 @@ export default function StyleTab({
       </div>
       )}
 
+      <div ref={resultsAnchorRef}>
       {busy && <div className="empty">{loadingMsg}…</div>}
       {error && <div className="notice err-notice">{error}</div>}
 
@@ -489,6 +503,7 @@ export default function StyleTab({
           </div>
         </div>
       )}
+      </div>
 
       {flow !== "M" && !result && !busy && !error && owned.length < 2 && (
         <div className="empty">
