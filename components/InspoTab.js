@@ -467,7 +467,11 @@ export default function InspoTab({
             <Thumb photoId={i.photoId} className="thumb tall" />
             <div className="card-body">
               <div className="badges">
-                <span className={`badge type-${i.type}`}>{TYPE_LABEL[i.type]}</span>
+                {/* An outfit photo reads as one at a glance - the badge is
+                    only worth the space for the less obvious types. */}
+                {i.type !== "outfit" && (
+                  <span className={`badge type-${i.type}`}>{TYPE_LABEL[i.type]}</span>
+                )}
                 {i.occasion && <span className="badge soft">{i.occasion}</span>}
                 {i.season && <span className="badge soft">{i.season}</span>}
                 {(i.tags || []).map((t) => (

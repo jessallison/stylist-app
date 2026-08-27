@@ -260,7 +260,7 @@ export default function ProfileTab({
         <form className="form" onSubmit={saveIdentity}>
           <label>Three words</label>
           {idForm.threeWords.map((t, i) => (
-            <div className="cols two" key={i}>
+            <div className="cols three-word-row" key={i}>
               <input
                 value={t.word}
                 placeholder="Word"
@@ -279,8 +279,39 @@ export default function ProfileTab({
                   setIdForm({ ...idForm, threeWords: tw });
                 }}
               />
+              <button
+                type="button"
+                className="chip"
+                onClick={() =>
+                  setIdForm({
+                    ...idForm,
+                    threeWords: idForm.threeWords.filter((_, wi) => wi !== i),
+                  })
+                }
+              >
+                Remove
+              </button>
             </div>
           ))}
+          {/* Only ever editing EXISTING rows above had no way to create the
+              first one - fine when every database started pre-seeded with
+              three, but a brand new database (a second person's own
+              deployment) starts with none. Capped at three since that's the
+              whole method. */}
+          {idForm.threeWords.length < 3 && (
+            <button
+              type="button"
+              className="chip"
+              onClick={() =>
+                setIdForm({
+                  ...idForm,
+                  threeWords: [...idForm.threeWords, { word: "", meaning: "" }],
+                })
+              }
+            >
+              + Add word
+            </button>
+          )}
           <div>
             <label>Extended vocabulary (comma-separated)</label>
             <input

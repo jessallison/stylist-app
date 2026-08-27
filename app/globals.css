@@ -1065,6 +1065,16 @@ header.top {
   margin-bottom: 6px;
 }
 
+.form .cols.three-word-row {
+  grid-template-columns: 1fr 2fr auto;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.form .cols.three-word-row .chip {
+  white-space: nowrap;
+}
+
 .form .cols.name-brand {
   grid-template-columns: 2fr 1fr;
 }
