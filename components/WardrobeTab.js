@@ -71,6 +71,7 @@ export default function WardrobeTab({
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null); // id, "new", or null
   const [form, setForm] = useState(EMPTY_FORM);
+  const [newTag, setNewTag] = useState(""); // pending text for "add a new style tag"
   const [photo, setPhoto] = useState(null); // pending data URL for new/replaced photo
   const [tagging, setTagging] = useState(false);
   const [bgBusy, setBgBusy] = useState(false);
@@ -158,6 +159,7 @@ export default function WardrobeTab({
   async function startNew(rawDataUrl) {
     if (!requireUnlock()) return;
     setForm(EMPTY_FORM);
+    setNewTag("");
     setPhoto(rawDataUrl);
     setEditingId("new");
     // Hash the untouched photo, before background removal can change its
@@ -215,6 +217,7 @@ export default function WardrobeTab({
       heavyRotation: !!item.heavyRotation,
       notes: item.notes || "",
     });
+    setNewTag("");
     setPhoto(null);
     setPhotoHash(null);
     setDupMatch(null);
@@ -281,6 +284,28 @@ export default function WardrobeTab({
       onStyle(id);
     } else {
       flash(isNew ? "Added to wardrobe" : "Saved");
+    }
+  }
+
+  // Style tags only offer whatever's already in the vocab list (ChipPick has
+  // no free-text option) - this is the same "add new, right where you need
+  // it" gap the brand field had. A new word joins the vocab (so it's there
+  // for every future item) and gets selected on this item immediately.
+  // Matching case-insensitively against the existing list avoids "Oversized"
+  // and "oversized" quietly becoming two different tags.
+  async function addNewTag() {
+    const word = newTag.trim();
+    if (!word) return;
+    const existing = vocab.find((v) => norm(v) === norm(word));
+    if (existing) {
+      if (!form.tags.includes(existing)) setForm({ ...form, tags: [...form.tags, existing] });
+      setNewTag("");
+      return;
+    }
+    const ok = await save("settings", (prev) => ({ ...prev, vocab: [...(prev.vocab || []), word] }));
+    if (ok) {
+      setForm({ ...form, tags: [...form.tags, word] });
+      setNewTag("");
     }
   }
 
@@ -572,6 +597,23 @@ export default function WardrobeTab({
             multi
             onChange={(v) => setForm({ ...form, tags: v })}
           />
+          <div className="row" style={{ marginTop: 8 }}>
+            <input
+              type="text"
+              placeholder="Add a new tag…"
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addNewTag();
+                }
+              }}
+            />
+            <button type="button" className="chip" onClick={addNewTag} disabled={!newTag.trim()}>
+              Add
+            </button>
+          </div>
         </div>
         {form.status === "owned" && (
           <div className="flag-row">
@@ -626,6 +668,7 @@ export default function WardrobeTab({
               setPhoto(null);
               setPhotoHash(null);
               setDupMatch(null);
+              setNewTag("");
             }}
           >
             Cancel
