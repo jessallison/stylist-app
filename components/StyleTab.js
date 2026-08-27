@@ -95,6 +95,11 @@ export default function StyleTab({
     setError(null);
     setResult(null);
     setDismissed(new Set());
+    // The loading state (and the result once it lands) renders near the top
+    // of this tab - if the page is scrolled down (browsing saved looks,
+    // say), jump back up so it's actually visible rather than happening
+    // off-screen above the fold.
+    window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       const res = await fetch("/api/suggest", {
         method: "POST",
