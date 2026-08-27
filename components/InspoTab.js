@@ -312,9 +312,13 @@ export default function InspoTab({
     return true;
   }
   const base = inspo.filter(inSearch);
-  const countsFor = (group, values, match) => {
+  // Drops options nothing saved currently has - see the same helper in
+  // WardrobeTab.js for why a selected option stays visible even at zero.
+  const countsFor = (group, values, match, selected) => {
     const pool = base.filter((i) => passes(i, group));
-    return values.map((v) => [v[0], v[1], pool.filter((i) => match(i, v[0])).length]);
+    return values
+      .map((v) => [v[0], v[1], pool.filter((i) => match(i, v[0])).length])
+      .filter(([v, , count]) => count > 0 || selected.has(v));
   };
   const shown = base.filter((i) => passes(i)).sort((a, b) => b.addedAt - a.addedAt);
   const activeCount = types.size + tagsSel.size + cols.size + seas.size + occs.size;
@@ -412,7 +416,7 @@ export default function InspoTab({
         <div className="filter-panel">
           <FilterGroup
             title="Type"
-            options={countsFor("type", INSPO_TYPES, (i, v) => i.type === v)}
+            options={countsFor("type", INSPO_TYPES, (i, v) => i.type === v, types)}
             selected={types}
             onToggle={(v) => toggleIn(types, v, setTypes)}
           />
@@ -421,7 +425,7 @@ export default function InspoTab({
               title="Tags"
               options={countsFor("tags", vocab.map((t) => [t, t]), (i, v) =>
                 (i.tags || []).includes(v)
-              )}
+              , tagsSel)}
               selected={tagsSel}
               onToggle={(v) => toggleIn(tagsSel, v, setTagsSel)}
             />
@@ -430,20 +434,20 @@ export default function InspoTab({
             title="Colour"
             options={countsFor("col", COLOURS.map((c) => [c, c]), (i, v) =>
               (i.colours || []).includes(v)
-            )}
+            , cols)}
             selected={cols}
             onToggle={(v) => toggleIn(cols, v, setCols)}
             swatches={COLOUR_TEXT_HEX}
           />
           <FilterGroup
             title="Season"
-            options={countsFor("sea", SEASONS.map((s) => [s, s]), (i, v) => i.season === v)}
+            options={countsFor("sea", SEASONS.map((s) => [s, s]), (i, v) => i.season === v, seas)}
             selected={seas}
             onToggle={(v) => toggleIn(seas, v, setSeas)}
           />
           <FilterGroup
             title="Occasion"
-            options={countsFor("occ", OCCASIONS.map((o) => [o, o]), (i, v) => i.occasion === v)}
+            options={countsFor("occ", OCCASIONS.map((o) => [o, o]), (i, v) => i.occasion === v, occs)}
             selected={occs}
             onToggle={(v) => toggleIn(occs, v, setOccs)}
           />

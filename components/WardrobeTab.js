@@ -674,9 +674,15 @@ export default function WardrobeTab({
   }
 
   const base = wardrobe.filter(inSearch);
-  const countsFor = (group, values, match) => {
+  // Drops options nothing in the wardrobe currently has - e.g. "Dresses"
+  // never shows up in a menswear wardrobe's filter panel. A selected option
+  // stays visible even at zero (from combining with another active filter),
+  // so it's never possible to select something you then can't un-select.
+  const countsFor = (group, values, match, selected) => {
     const pool = base.filter((w) => passes(w, group));
-    return values.map((v) => [v[0], v[1], pool.filter((w) => match(w, v[0])).length]);
+    return values
+      .map((v) => [v[0], v[1], pool.filter((w) => match(w, v[0])).length])
+      .filter(([v, , count]) => count > 0 || selected.has(v));
   };
 
   const shown = base
@@ -1013,7 +1019,7 @@ export default function WardrobeTab({
         <div className="filter-panel">
           <FilterGroup
             title="Category"
-            options={countsFor("cat", CATEGORIES.map((c) => [c, c]), (w, v) => w.category === v)}
+            options={countsFor("cat", CATEGORIES.map((c) => [c, c]), (w, v) => w.category === v, cats)}
             selected={cats}
             onToggle={(v) => toggleIn(cats, v, setCats)}
           />
@@ -1022,7 +1028,7 @@ export default function WardrobeTab({
               title="Tags"
               options={countsFor("tags", vocab.map((t) => [t, t]), (w, v) =>
                 (w.tags || []).includes(v)
-              )}
+              , tagsSel)}
               selected={tagsSel}
               onToggle={(v) => toggleIn(tagsSel, v, setTagsSel)}
             />
@@ -1031,21 +1037,21 @@ export default function WardrobeTab({
             title="Colour"
             options={countsFor("col", COLOURS.map((c) => [c, c]), (w, v) =>
               (w.colours || []).includes(v)
-            )}
+            , cols)}
             selected={cols}
             onToggle={(v) => toggleIn(cols, v, setCols)}
             swatches={COLOUR_TEXT_HEX}
           />
           <FilterGroup
             title="Season"
-            options={countsFor("sea", SEASONS.map((s) => [s, s]), (w, v) => w.season === v)}
+            options={countsFor("sea", SEASONS.map((s) => [s, s]), (w, v) => w.season === v, seas)}
             selected={seas}
             onToggle={(v) => toggleIn(seas, v, setSeas)}
           />
           {allBrands.length > 0 && (
             <FilterGroup
               title="Brand"
-              options={countsFor("brand", allBrands.map((b) => [b, b]), (w, v) => w.brand === v)}
+              options={countsFor("brand", allBrands.map((b) => [b, b]), (w, v) => w.brand === v, brands)}
               selected={brands}
               onToggle={(v) => toggleIn(brands, v, setBrands)}
             />
@@ -1058,7 +1064,8 @@ export default function WardrobeTab({
                 ["owned", "Owned"],
                 ["wanted", "Wanted"],
               ],
-              (w, v) => w.status === v
+              (w, v) => w.status === v,
+              status
             )}
             selected={status}
             onToggle={(v) => toggleIn(status, v, setStatus)}
@@ -1077,7 +1084,8 @@ export default function WardrobeTab({
                   ? w.needsStyling
                   : v === "notsize"
                   ? w.fitStatus === "not_current"
-                  : w.heavyRotation
+                  : w.heavyRotation,
+              flags
             )}
             selected={flags}
             onToggle={(v) => toggleIn(flags, v, setFlags)}
