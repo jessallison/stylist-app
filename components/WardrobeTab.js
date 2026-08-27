@@ -63,6 +63,11 @@ export default function WardrobeTab({
 }) {
   const wardrobe = data.wardrobe;
   const vocab = data.settings.vocab || [];
+  // Brand facet is derived from whatever's been entered - no maintained list.
+  // Declared up here (not just where the filter panel uses it) because the
+  // item form's brand autocomplete needs it too, and the form can render
+  // before the rest of this function body runs (early return below).
+  const allBrands = [...new Set(wardrobe.map((w) => w.brand).filter(Boolean))].sort();
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null); // id, "new", or null
   const [form, setForm] = useState(EMPTY_FORM);
@@ -493,7 +498,18 @@ export default function WardrobeTab({
               value={form.brand}
               onChange={(e) => setForm({ ...form, brand: e.target.value })}
               placeholder="e.g. Esse"
+              list="brand-options"
+              autoComplete="off"
             />
+            {/* Suggests brands already in the wardrobe as you type, so the
+                same brand doesn't fragment into near-duplicate spellings -
+                still a free-text field, so a genuinely new brand types in
+                same as always. */}
+            <datalist id="brand-options">
+              {allBrands.map((b) => (
+                <option key={b} value={b} />
+              ))}
+            </datalist>
           </div>
         </div>
         <div>
@@ -669,8 +685,6 @@ export default function WardrobeTab({
   const ownedCount = wardrobe.filter((w) => w.status === "owned").length;
   const activeCount =
     cats.size + tagsSel.size + brands.size + cols.size + seas.size + status.size + flags.size;
-  // Brand facet is derived from whatever's been entered - no maintained list.
-  const allBrands = [...new Set(wardrobe.map((w) => w.brand).filter(Boolean))].sort();
 
   // Shuffle: picks from whatever's currently shown and wearable, respecting
   // active search/filters - same "🎲 Surprise me" pattern as the recipe app.
