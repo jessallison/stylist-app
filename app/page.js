@@ -463,8 +463,7 @@ export default function Home() {
           <p>
             A styling and inspiration layer over my real wardrobe: outfit ideas
             matched to inspo images, filtered by season or occasion, or built
-            around one piece I don&rsquo;t know how to wear yet. Suggestions only
-            ever use things I own.
+            around one piece I don&rsquo;t know how to wear yet.
           </p>
         </div>
         <div className="f-side">

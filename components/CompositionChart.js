@@ -73,6 +73,15 @@ export default function CompositionChart({ items }) {
   const formCounts = countBy(items, (w) => w.formality);
   const formMax = formCounts[0]?.[1] || 1;
 
+  // Brand only counts pieces that actually have one - an empty brand field
+  // isn't "Unspecified" the way a missing category would be, it's just not
+  // a data point for this chart.
+  const brandCounts = countBy(
+    items.filter((w) => w.brand),
+    (w) => w.brand
+  );
+  const brandMax = brandCounts[0]?.[1] || 1;
+
   return (
     <div className="comp-panel">
       <div className="comp-scope">
@@ -96,6 +105,9 @@ export default function CompositionChart({ items }) {
 
       <BarGroup title="Colour" rows={colCounts} max={colMax} swatches={COLOUR_HEX} />
       <BarGroup title="Formality" rows={formCounts} max={formMax} />
+      {brandCounts.length > 0 && (
+        <BarGroup title="Brand" rows={brandCounts} max={brandMax} />
+      )}
     </div>
   );
 }

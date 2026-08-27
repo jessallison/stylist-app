@@ -14,7 +14,7 @@ import { newId, norm, PhotoButton, Thumb, uploadImage, deleteImage } from "./sha
 // the whole loading state rather than re-rolled on every re-render.
 const STYLING_MESSAGES = [
   "Building the outfit from the inside out",
-  "Checking what actually goes with what",
+  "Checking what goes with what",
   "Making the case for each piece",
   "Weighing colour against colour",
   "Ruling things in, ruling things out",
@@ -55,6 +55,19 @@ export default function StyleTab({
   // two feedback clicks close together each see the other's entry rather
   // than racing to overwrite one another.
   const feedbackRef = useRef(data.feedback || []);
+
+  // Saved looks display in a random order rather than newest-first, so the
+  // section feels fresh on repeat visits instead of always leading with the
+  // same handful. Each look's position is rolled once, the first time it's
+  // seen, and cached here - re-sorting on every render would make cards
+  // swap places while you're mid-scroll.
+  const lookOrderRef = useRef(new Map());
+  function shuffleKey(id) {
+    if (!lookOrderRef.current.has(id)) {
+      lookOrderRef.current.set(id, Math.random());
+    }
+    return lookOrderRef.current.get(id);
+  }
 
   // Manual builder (flow M): no AI, just a picker.
   const [manualIds, setManualIds] = useState([]);
@@ -287,7 +300,7 @@ export default function StyleTab({
         {flowBtn("B", "Suggest outfits", "from filters, or nothing at all")}
         {flowBtn("A", "Match an inspo image", "rebuild a saved look from my wardrobe")}
         {flowBtn("C", "Style a piece", "a new buy, or something I never wear")}
-        {flowBtn("M", "Build my own", "pick pieces by hand, no AI")}
+        {flowBtn("M", "Build my own", "pick pieces by hand")}
       </div>
 
       {flow === "A" && (
@@ -378,7 +391,11 @@ export default function StyleTab({
 
       {flow !== "M" && (
       <div className="flow-config">
-        <div className="row" style={{ flexWrap: "wrap" }}>
+        {/* filter-row narrows the three selects (globally they flex to fill
+            their row, which is right for the single-select rows above but
+            leaves no room here) so Style me and YOLO sit on the same line,
+            YOLO pushed to the far right via margin-left: auto. */}
+        <div className="row filter-row">
           <select
             value={filters.season}
             onChange={(e) => setFilters({ ...filters, season: e.target.value })}
@@ -410,16 +427,8 @@ export default function StyleTab({
           <button className="btn" onClick={() => run()} disabled={busy || !data.ai}>
             {busy ? "Styling…" : "Style me"}
           </button>
-        </div>
-        {/* Own row, right-aligned - kept apart from Style me so the two
-            aren't sitting side by side (they were easy to mix up when
-            adjacent). Deliberately not sharing .row: that's a flex-wrap
-            container, and depending on how many dropdown options push it
-            around, YOLO could still end up hugging Style me on a wrapped
-            line instead of sitting clearly apart from it. */}
-        <div className="row yolo-row">
           <button
-            className={`chip ${filters.justMe ? "sel" : ""}`}
+            className={`chip yolo-btn ${filters.justMe ? "sel" : ""}`}
             onClick={() =>
               setFilters({ ...filters, justMe: !filters.justMe, occasion: "" })
             }
@@ -474,7 +483,7 @@ export default function StyleTab({
       {flow !== "M" && !result && !busy && !error && owned.length < 2 && (
         <div className="empty">
           Add a few wardrobe pieces first - the engine only dresses you in
-          things you actually own.
+          things you own.
         </div>
       )}
 
@@ -487,7 +496,7 @@ export default function StyleTab({
           </div>
           <div className="results saved-looks">
             {[...looks]
-              .sort((a, b) => b.savedAt - a.savedAt)
+              .sort((a, b) => shuffleKey(a.id) - shuffleKey(b.id))
               .map((l) => (
                 <OutfitCard
                   key={l.id}

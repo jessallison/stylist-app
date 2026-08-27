@@ -143,7 +143,7 @@ export default function InspoTab({
       if (dupOf) {
         flash("Saved - heads up, this looks identical to one already saved");
       } else if (item.type === "product") {
-        flash("Saved - looks like a product pin. Add it to the wardrobe as wanted?");
+        flash("Saved - looks like an item. Add it to the wardrobe as wanted?");
       }
     } finally {
       setBusy((b) => b - 1);
@@ -457,7 +457,7 @@ export default function InspoTab({
       {inspo.length === 0 && (
         <div className="empty">
           No inspiration saved yet. Add screenshots with <b>+ Add images</b> -
-          each one gets auto-sorted into outfit photo, flat-lay or product pin.
+          each one gets auto-sorted into outfit photo, flat-lay or item.
         </div>
       )}
 
@@ -469,6 +469,32 @@ export default function InspoTab({
             onClick={() => startEdit(i)}
           >
             <Thumb photoId={i.photoId} className="thumb tall" />
+            {/* Compact grid hides .card-body entirely (badges/notes/all
+                actions) to fit more tiles per row - mirrors Wardrobe's
+                compact-style-link: the one action that survives, as a bare
+                link under the thumb, matching whichever primary action
+                card-actions below would otherwise show for this type. */}
+            {i.type === "product" ? (
+              <button
+                className="chip compact-style-link"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddWanted(i);
+                }}
+              >
+                Add to wardrobe
+              </button>
+            ) : (
+              <button
+                className="chip compact-style-link"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMatch(i.id);
+                }}
+              >
+                Style me
+              </button>
+            )}
             <div className="card-body">
               <div className="badges">
                 {/* An outfit photo reads as one at a glance - the badge is

@@ -718,7 +718,7 @@ header.top {
   margin-top: 4px;
   font-size: 0.56rem;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--muted);
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-thickness: 1px;
@@ -726,7 +726,7 @@ header.top {
 }
 
 .grid.compact .compact-style-link:hover {
-  color: var(--muted);
+  color: var(--ink);
 }
 
 /* --- Tile density toggle ---------------------------------------------------- */
@@ -958,6 +958,25 @@ header.top {
   line-height: 1.5;
 }
 
+/* Brand is the one part of the meta line that does something - underlined
+   and darkened just enough to read as tappable against the muted text
+   around it, without shouting. Inline-block plus a little padding widens
+   the tap target beyond the bare text. */
+.meta .brand-link {
+  display: inline-block;
+  padding: 2px 0;
+  margin: -2px 0;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
+}
+
+.meta .brand-link:hover {
+  color: var(--muted);
+}
+
 .badges {
   display: flex;
   gap: 5px;
@@ -1042,14 +1061,14 @@ header.top {
   margin: -8px -6px;
   font-size: 0.6rem;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--muted);
   text-decoration: underline;
   text-underline-offset: 4px;
   text-decoration-thickness: 1px;
 }
 
 .card-actions .chip:hover {
-  color: var(--muted);
+  color: var(--ink);
 }
 
 /* --- Forms ------------------------------------------------------------------ */
@@ -1062,16 +1081,21 @@ header.top {
   flex-wrap: wrap;
 }
 
-/* Kept on its own line, right-aligned, so it reads as a separate, secondary
-   toggle rather than sitting next to Style me where the two get mixed up. */
-.yolo-row {
-  justify-content: flex-end;
-}
-
 .row select {
   width: auto;
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* Style tab's season/occasion/colour row: capped select widths (they'd
+   otherwise flex to fill the row per the rule above) so Style me and YOLO
+   both fit on the same line, with YOLO pushed to the far right. */
+.filter-row select {
+  flex: 0 1 160px;
+}
+
+.filter-row .yolo-btn {
+  margin-left: auto;
 }
 
 .form {

@@ -29,6 +29,36 @@ import {
 } from "./shared";
 import CompositionChart from "./CompositionChart";
 
+// Tile meta line ("Uniqlo · Tops · Grey · Cold weather") with the brand as a
+// live shortcut into the Brand filter, rather than a link to a separate
+// brand directory - the filter facet already has counts and already hides
+// brands with nothing in them, so this just puts a faster door into it.
+// onBrandClick is omitted (not just a no-op) for the "Today's pick" card,
+// which sits outside the wardrobe grid it would be filtering.
+function ItemMeta({ item, onBrandClick }) {
+  const rest = [item.category, (item.colours || []).join(", "), item.season].filter(Boolean);
+  return (
+    <div className="meta">
+      {item.brand &&
+        (onBrandClick ? (
+          <span
+            className="brand-link"
+            onClick={(e) => {
+              e.stopPropagation();
+              onBrandClick(item.brand);
+            }}
+          >
+            {item.brand}
+          </span>
+        ) : (
+          item.brand
+        ))}
+      {item.brand && rest.length > 0 ? " · " : ""}
+      {rest.join(" · ")}
+    </div>
+  );
+}
+
 const EMPTY_FORM = {
   name: "",
   brand: "",
@@ -199,6 +229,14 @@ export default function WardrobeTab({
       flash("Tag suggestion failed - fill in by hand");
     }
     setTagging(false);
+  }
+
+  // Tapping a brand on a tile jumps straight to "only this brand" rather
+  // than adding to whatever's already selected - it's a shortcut in, not
+  // another way to build up a multi-brand filter.
+  function filterByBrand(brand) {
+    setBrands(new Set([brand]));
+    setShowFilters(true);
   }
 
   function startEdit(item) {
@@ -1148,11 +1186,7 @@ export default function WardrobeTab({
             <Thumb photoId={luckyEntry.photoId} alt={luckyEntry.name} />
             <div className="card-body">
               <h3>{luckyEntry.name}</h3>
-              <div className="meta">
-                {[luckyEntry.brand, luckyEntry.category, (luckyEntry.colours || []).join(", "), luckyEntry.season]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </div>
+              <ItemMeta item={luckyEntry} />
               <div className="card-actions">
                 <button className="chip" onClick={() => onStyle(luckyEntry.id)}>
                   Style this
@@ -1194,11 +1228,7 @@ export default function WardrobeTab({
             )}
             <div className="card-body">
               <h3>{w.name}</h3>
-              <div className="meta">
-                {[w.brand, w.category, (w.colours || []).join(", "), w.season]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </div>
+              <ItemMeta item={w} onBrandClick={filterByBrand} />
               <div className="badges">
                 {w.status === "wanted" && <span className="badge want">wanted</span>}
                 {w.needsStyling && <span className="badge needs">needs styling</span>}

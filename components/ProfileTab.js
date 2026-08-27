@@ -39,33 +39,57 @@ export default function ProfileTab({
   const looks = data.looks || [];
   const byId = Object.fromEntries(wardrobe.map((w) => [w.id, w]));
 
-  const latestWorn = profile.length
-    ? [...profile].sort((a, b) => b.addedAt - a.addedAt)[0]
-    : null;
-  const latestInspo = inspo.length
-    ? [...inspo].sort((a, b) => b.addedAt - a.addedAt)[0]
-    : null;
-  const latestWardrobe = wardrobe.length
-    ? [...wardrobe].sort((a, b) => b.addedAt - a.addedAt)[0]
-    : null;
-  const latestLook = looks.length
-    ? [...looks].sort((a, b) => b.savedAt - a.savedAt)[0]
-    : null;
   // A saved look only carries its own photo when it was built around a
   // freshly-photographed "NEW" piece - otherwise borrow the first item's
   // wardrobe shot, so the tile always has something real to show.
-  const latestLookPhotoId =
-    latestLook?.anchorPhotoId ||
-    (latestLook?.item_ids || []).map((id) => byId[id]?.photoId).find(Boolean) ||
-    null;
+  function lookPhotoId(look) {
+    return (
+      look?.anchorPhotoId ||
+      (look?.item_ids || []).map((id) => byId[id]?.photoId).find(Boolean) ||
+      null
+    );
+  }
 
-  // Four-up snapshot of what's freshest across the app - keeps the profile
-  // page feeling current without competing with the style identity text.
+  // Prefer items that actually have a photo - otherwise a random pick can
+  // land on a bare "no photo" placeholder even when plenty of photographed
+  // pieces exist, which defeats the point of a visual snapshot. Falls back
+  // to the unfiltered list so a near-empty database still shows something.
+  function withPhoto(list) {
+    const has = list.filter((x) => x.photoId);
+    return has.length ? has : list;
+  }
+
+  function pickRandom(list, seed) {
+    return list.length ? list[Math.floor(seed * list.length)] : null;
+  }
+
+  // One random index per category, rolled once when the app loads and held
+  // steady for the session - rerolling on every render would make the
+  // photos jump around mid-glance, and always-latest went stale for weeks
+  // at a time since these lists barely change day to day.
+  const [snapshotSeed] = useState(() => ({
+    worn: Math.random(),
+    inspo: Math.random(),
+    wardrobe: Math.random(),
+    look: Math.random(),
+  }));
+
+  const looksWithPhoto = looks.filter((l) => lookPhotoId(l));
+  const randomWorn = pickRandom(withPhoto(profile), snapshotSeed.worn);
+  const randomInspo = pickRandom(withPhoto(inspo), snapshotSeed.inspo);
+  const randomWardrobe = pickRandom(withPhoto(wardrobe), snapshotSeed.wardrobe);
+  const randomLook = pickRandom(
+    looksWithPhoto.length ? looksWithPhoto : looks,
+    snapshotSeed.look
+  );
+
+  // Four-up snapshot, one random item per category - keeps the profile page
+  // feeling current without competing with the style identity text.
   const snapshotTiles = [
-    { key: "worn", label: "Worn", photoId: latestWorn?.photoId, empty: "Log a worn outfit and it lands here" },
-    { key: "inspo", label: "Inspo", photoId: latestInspo?.photoId, empty: "Save some inspo and it lands here" },
-    { key: "wardrobe", label: "Wardrobe", photoId: latestWardrobe?.photoId, empty: "Add a piece and it lands here" },
-    { key: "look", label: "Saved look", photoId: latestLookPhotoId, empty: "Save a look and it lands here" },
+    { key: "worn", label: "Worn", photoId: randomWorn?.photoId, empty: "Log a worn outfit and it lands here" },
+    { key: "inspo", label: "Inspo", photoId: randomInspo?.photoId, empty: "Save some inspo and it lands here" },
+    { key: "wardrobe", label: "Wardrobe", photoId: randomWardrobe?.photoId, empty: "Add a piece and it lands here" },
+    { key: "look", label: "Saved look", photoId: lookPhotoId(randomLook), empty: "Save a look and it lands here" },
   ];
 
   // Defaults to "all" so the worn-outfits grid shows everything on first
@@ -179,8 +203,7 @@ export default function ProfileTab({
     <div>
       <div className="section-h">Style identity</div>
       <div className="section-sub">
-        From the Allison Bornstein session - what the engine checks every outfit
-        against.
+        Your fashion DNA - what the app checks every outfit against.
       </div>
       {!editingIdentity ? (
         <div className="profile-hero">
@@ -413,11 +436,6 @@ export default function ProfileTab({
             <div key={p.id} className="card item-card">
               <Thumb photoId={p.photoId} className="thumb tall" />
               <div className="card-body">
-                {context === "all" && (
-                  <span className="badge">
-                    {PROFILE_CONTEXTS.find(([v]) => v === p.context)?.[1] || p.context}
-                  </span>
-                )}
                 <div className="card-actions">
                   <button className="chip" onClick={() => remove(p)}>
                     Remove
