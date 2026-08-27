@@ -1,5 +1,7 @@
 "use client";
 
+import { COLOUR_TEXT_HEX } from "../lib/style-identity";
+
 // Small shared pieces used by every tab.
 
 export const norm = (s) => (s || "").trim().toLowerCase();
@@ -66,20 +68,38 @@ export function fileToDataUrl(file, maxDim = 900, quality = 0.8) {
   });
 }
 
-// A swatch value is either a plain hex string (applied as text colour) or a
-// CSS gradient string (for "Multi / print" - no single hue to colour text
-// with, so the gradient is clipped to the text itself instead).
-function swatchTextStyle(swatch) {
-  if (!swatch) return undefined;
+// Cycled letter-by-letter for the "Multi / print" label, instead of a
+// gradient clipped across the whole word - on a short label a clipped
+// gradient often lands most letters in one washed-out band of the sweep.
+// Pulled straight from COLOUR_TEXT_HEX, so every letter is already
+// legibility-adjusted - none of them render too light to read.
+const MULTI_LETTER_COLOURS = [
+  COLOUR_TEXT_HEX.Red,
+  COLOUR_TEXT_HEX.Blue,
+  COLOUR_TEXT_HEX.Green,
+  COLOUR_TEXT_HEX.Purple,
+  COLOUR_TEXT_HEX.Orange,
+  COLOUR_TEXT_HEX.Burgundy,
+  COLOUR_TEXT_HEX.Denim,
+  COLOUR_TEXT_HEX.Rust,
+];
+
+// A swatch value is either a plain hex string (applied as text colour) or
+// the "Multi / print" gradient marker, rendered instead as rainbow letters.
+// Returns plain `label` when there's no swatch to apply.
+function swatchLabel(label, swatch) {
+  if (!swatch) return label;
   if (swatch.startsWith("linear-gradient")) {
-    return {
-      backgroundImage: swatch,
-      WebkitBackgroundClip: "text",
-      backgroundClip: "text",
-      color: "transparent",
-    };
+    return label.split("").map((ch, i) => (
+      <span
+        key={i}
+        style={{ color: MULTI_LETTER_COLOURS[i % MULTI_LETTER_COLOURS.length] }}
+      >
+        {ch}
+      </span>
+    ));
   }
-  return { color: swatch };
+  return <span style={{ color: swatch }}>{label}</span>;
 }
 
 // Chip-set picker (single or multi select). `swatches` is an optional
@@ -99,7 +119,6 @@ export function ChipPick({ options, value, onChange, multi = false, swatches }) 
             type="button"
             key={opt}
             className={`chip ${on ? "on" : ""}`}
-            style={!on ? swatchTextStyle(swatches?.[opt]) : undefined}
             onClick={() => {
               if (multi) {
                 const next = new Set(selected);
@@ -110,7 +129,7 @@ export function ChipPick({ options, value, onChange, multi = false, swatches }) 
               }
             }}
           >
-            {opt}
+            {on ? opt : swatchLabel(opt, swatches?.[opt])}
           </button>
         );
       })}
@@ -206,7 +225,7 @@ export function FilterGroup({ title, options, selected, onToggle, swatches }) {
             checked={selected.has(value)}
             onChange={() => onToggle(value)}
           />
-          <span style={swatchTextStyle(swatches?.[value])}>{label}</span>{" "}
+          <span>{swatchLabel(label, swatches?.[value])}</span>{" "}
           {count != null && <span className="f-count">({count})</span>}
         </label>
       ))}
