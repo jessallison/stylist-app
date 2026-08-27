@@ -7,7 +7,7 @@ import { newId, norm, PhotoButton, Thumb, uploadImage, deleteImage } from "./sha
 // The three AI entry flows of the suggestion engine, plus one manual one:
 //   A - match an inspo image (from the library, or a fresh upload)
 //   B - filters only ("what should I wear" with no source image)
-//   C - style an anchor piece (an owned item, or a just-bought photo)
+//   C - style an anchor piece (an owned or wanted item, or a just-bought photo)
 //   M - build my own: pick pieces by hand, no AI call at all
 
 export default function StyleTab({

@@ -7,7 +7,7 @@ export const maxDuration = 120;
 // The suggestion engine. Three flows, one endpoint:
 //   A - match an inspo image  { flow:"A", inspoId | image }
 //   B - filters only          { flow:"B", filters:{ season, occasion, colour, justMe } }
-//   C - anchor piece          { flow:"C", anchorId | image (new purchase photo) }
+//   C - anchor piece          { flow:"C", anchorId (owned or wanted) | image (new purchase photo) }
 // Reasoning runs over structured tags plus the source image - wardrobe items
 // go in as compact tag records, not photos, which is more reliable (and far
 // cheaper) at this scale.
@@ -111,8 +111,10 @@ export async function POST(request) {
   );
   const wanted = wardrobe.filter((w) => w.status === "wanted");
 
-  // Flow C's anchor may itself be excluded from `wearable` rules? No - the
-  // anchor is explicitly requested, so it only has to be owned.
+  // Flow C's anchor is explicitly requested, so it doesn't have to pass the
+  // `wearable` rules - it can be "wanted" (not bought yet) as well as owned.
+  // The prompt below adjusts its wording accordingly so a wanted anchor
+  // isn't described as something she already owns.
   let anchor = null;
   if (flow === "C" && body.anchorId) {
     anchor = wardrobe.find((w) => w.id === body.anchorId);
@@ -189,7 +191,7 @@ Also report what's genuinely missing to complete the look (the "gaps" field).`
       ? `TASK - STYLE AN ANCHOR PIECE.
 ${
   anchor
-    ? `The required anchor is her own item ${anchor.id} (${anchor.name})${sourceImage ? " - photo attached" : ""}. EVERY outfit must include ${anchor.id} in item_ids.`
+    ? `The required anchor is ${anchor.status === "wanted" ? "a piece she's considering buying - she doesn't own it yet" : "her own item"} ${anchor.id} (${anchor.name})${sourceImage ? " - photo attached" : ""}. EVERY outfit must include ${anchor.id} in item_ids.${anchor.status === "wanted" ? " Don't refer to it as something she already owns or wears - frame it as how it would work if she bought it." : ""}`
     : `The attached image is something she has just bought (possibly a resale-listing screenshot - ignore any interface or price in the shot). Treat that item as the required anchor: every outfit is built around it plus her owned wardrobe. Since it isn't catalogued yet, put "NEW" in item_ids where it belongs and mention it by name in the notes.`
 }
 Show its range: vary the direction across outfits (e.g. one everyday, one dressed up, one unexpected).`

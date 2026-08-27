@@ -1135,17 +1135,16 @@ export default function WardrobeTab({
               </div>
               {!bulkMode && (
                 <div className="card-actions">
-                  {w.status === "owned" ? (
-                    <button
-                      className="chip"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onStyle(w.id);
-                      }}
-                    >
-                      Style this
-                    </button>
-                  ) : (
+                  <button
+                    className="chip"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStyle(w.id);
+                    }}
+                  >
+                    Style this
+                  </button>
+                  {w.status === "wanted" && (
                     <button
                       className="chip"
                       onClick={(e) => {
