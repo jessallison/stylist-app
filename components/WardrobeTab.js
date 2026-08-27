@@ -6,6 +6,7 @@ import {
   SEASONS,
   FORMALITY,
   COLOURS,
+  COLOUR_TEXT_HEX,
 } from "../lib/style-identity";
 import {
   norm,
@@ -376,6 +377,26 @@ export default function WardrobeTab({
       }
     }
 
+    // Same idea as handleRotate, but for the retroactive case: photos added
+    // before background removal was configured, or that were saved without
+    // it for whatever reason. Same source-then-target dance - use the
+    // pending `photo` if there is one, otherwise pull the saved photo down
+    // first - then run it through the same remove.bg pass startNew() uses.
+    async function handleRemoveBg() {
+      if (!requireUnlock()) return;
+      try {
+        const source = photo || (original?.photoId ? await fetchImageAsDataUrl(adminKey, original.photoId) : null);
+        if (!source) return;
+        const cleaned = await cleanBackground(source);
+        setPhoto(cleaned);
+        const h = await hashDataUrl(cleaned);
+        setPhotoHash(h);
+        setDupMatch(wardrobe.find((w) => w.hash === h && w.id !== editingId) || null);
+      } catch (e) {
+        flash(e.message || "Couldn't remove the background");
+      }
+    }
+
     return (
       <form className="form" onSubmit={submit}>
         <div className="form-photo-row">
@@ -385,28 +406,66 @@ export default function WardrobeTab({
             className="form-thumb"
           />
           <div>
-            <PhotoButton
-              className="btn ghost"
-              label={photo || original?.photoId ? "Replace photo" : "Add photo"}
-              onPhoto={async (raw) => {
-                const h = await hashDataUrl(raw);
-                setPhotoHash(h);
-                setDupMatch(wardrobe.find((w) => w.hash === h && w.id !== editingId) || null);
-                setPhoto(await cleanBackground(raw));
-              }}
-              onError={flash}
-            />
-            {(photo || original?.photoId) && (
-              <button
-                type="button"
+            <div className="photo-actions-row">
+              <PhotoButton
                 className="btn ghost"
-                onClick={handleRotate}
-                disabled={rotating}
-                style={{ marginTop: 8, display: "block" }}
-              >
-                {rotating ? "Rotating…" : "↻ Rotate"}
-              </button>
-            )}
+                label={photo || original?.photoId ? "Replace photo" : "Add photo"}
+                onPhoto={async (raw) => {
+                  const h = await hashDataUrl(raw);
+                  setPhotoHash(h);
+                  setDupMatch(wardrobe.find((w) => w.hash === h && w.id !== editingId) || null);
+                  setPhoto(await cleanBackground(raw));
+                }}
+                onError={flash}
+              />
+              {(photo || original?.photoId) && (
+                <button
+                  type="button"
+                  className="photo-icon-btn"
+                  onClick={handleRotate}
+                  disabled={rotating}
+                  aria-label="Rotate photo"
+                  title="Rotate 90°"
+                >
+                  <svg viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M13 8A5 5 0 1 1 11.5 4.4"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M13 3.5V7h-3.5"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              )}
+              {(photo || original?.photoId) && data.bgRemoval && (
+                <button
+                  type="button"
+                  className="photo-icon-btn"
+                  onClick={handleRemoveBg}
+                  disabled={bgBusy}
+                  aria-label="Remove background"
+                  title="Remove background"
+                >
+                  <svg viewBox="0 0 16 16" fill="none">
+                    <rect
+                      x="1"
+                      y="1"
+                      width="14"
+                      height="14"
+                      rx="1"
+                      stroke="currentColor"
+                      strokeDasharray="2 2"
+                    />
+                    <rect x="5" y="5" width="6" height="6" fill="currentColor" />
+                  </svg>
+                </button>
+              )}
+            </div>
             {bgBusy && <div className="count" style={{ marginTop: 8 }}>Removing background…</div>}
             {tagging && <div className="count" style={{ marginTop: 8 }}>Suggesting tags…</div>}
           </div>
@@ -451,6 +510,7 @@ export default function WardrobeTab({
             options={COLOURS}
             value={form.colours}
             multi
+            swatches={COLOUR_TEXT_HEX}
             onChange={(v) => setForm({ ...form, colours: v })}
           />
         </div>
@@ -678,6 +738,23 @@ export default function WardrobeTab({
         >
           Filters{activeCount ? ` (${activeCount})` : ""}
         </button>
+        {activeCount > 0 && (
+          <button
+            type="button"
+            className="chip"
+            onClick={() => {
+              setCats(new Set());
+              setTagsSel(new Set());
+              setBrands(new Set());
+              setCols(new Set());
+              setSeas(new Set());
+              setStatus(new Set());
+              setFlags(new Set());
+            }}
+          >
+            Clear filters
+          </button>
+        )}
         <button
           className="chip"
           onClick={pickLucky}
@@ -943,6 +1020,7 @@ export default function WardrobeTab({
             )}
             selected={cols}
             onToggle={(v) => toggleIn(cols, v, setCols)}
+            swatches={COLOUR_TEXT_HEX}
           />
           <FilterGroup
             title="Season"

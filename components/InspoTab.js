@@ -5,6 +5,7 @@ import {
   SEASONS,
   OCCASIONS,
   COLOURS,
+  COLOUR_TEXT_HEX,
   INSPO_TYPES,
 } from "../lib/style-identity";
 import {
@@ -247,6 +248,7 @@ export default function InspoTab({
             options={COLOURS}
             value={form.colours || []}
             multi
+            swatches={COLOUR_TEXT_HEX}
             onChange={(v) => setForm({ ...form, colours: v })}
           />
         </div>
@@ -358,6 +360,21 @@ export default function InspoTab({
         >
           Filters{activeCount ? ` (${activeCount})` : ""}
         </button>
+        {activeCount > 0 && (
+          <button
+            type="button"
+            className="chip"
+            onClick={() => {
+              setTypes(new Set());
+              setTagsSel(new Set());
+              setCols(new Set());
+              setOccs(new Set());
+              setSeas(new Set());
+            }}
+          >
+            Clear filters
+          </button>
+        )}
         <PhotoButton
           className="btn"
           label={busy ? `Adding… (${busy})` : "+ Add images"}
@@ -416,6 +433,7 @@ export default function InspoTab({
             )}
             selected={cols}
             onToggle={(v) => toggleIn(cols, v, setCols)}
+            swatches={COLOUR_TEXT_HEX}
           />
           <FilterGroup
             title="Season"

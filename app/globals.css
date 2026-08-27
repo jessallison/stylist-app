@@ -585,6 +585,22 @@ header.top {
   margin-top: 3px;
 }
 
+/* The wardrobe-form flag checkboxes (not my size / needs styling / wear a
+   lot) are asides, not hero fields - sized down to match the NOTES/STYLE
+   TAGS field labels (.form label, 0.6rem) rather than the body-text size
+   the shared .f-opt rule uses everywhere else (filter-panel checklists,
+   which stay at the larger size). Scoped to .flag-row so it doesn't touch
+   FilterGroup's checkboxes elsewhere. */
+.flag-row .f-opt.f-opt {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.flag-row .f-opt.f-opt input {
+  margin-top: 1px;
+}
+
 .f-count {
   color: var(--muted);
   font-size: 0.74rem;
@@ -764,6 +780,45 @@ header.top {
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+
+/* Photo-row icon actions (rotate, remove background) - quiet, occasional
+   fixes rather than everyday actions, so they sit as small icon buttons
+   beside Replace photo instead of full labelled buttons competing with it.
+   Same square-icon-button language as .dupes-btn/.tile-toggle button. */
+.photo-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.photo-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.photo-icon-btn:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.photo-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.photo-icon-btn svg {
+  width: 15px;
+  height: 15px;
 }
 
 .grid .card {

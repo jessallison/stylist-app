@@ -66,8 +66,29 @@ export function fileToDataUrl(file, maxDim = 900, quality = 0.8) {
   });
 }
 
-// Chip-set picker (single or multi select).
-export function ChipPick({ options, value, onChange, multi = false }) {
+// A swatch value is either a plain hex string (applied as text colour) or a
+// CSS gradient string (for "Multi / print" - no single hue to colour text
+// with, so the gradient is clipped to the text itself instead).
+function swatchTextStyle(swatch) {
+  if (!swatch) return undefined;
+  if (swatch.startsWith("linear-gradient")) {
+    return {
+      backgroundImage: swatch,
+      WebkitBackgroundClip: "text",
+      backgroundClip: "text",
+      color: "transparent",
+    };
+  }
+  return { color: swatch };
+}
+
+// Chip-set picker (single or multi select). `swatches` is an optional
+// {option: hex} map (see COLOUR_TEXT_HEX in lib/style-identity) - when
+// given, an unselected chip's text renders in that colour, so "Rust" reads
+// as rust-coloured text. A SELECTED chip keeps the app's normal ink-fill
+// look untouched (every other chip type means "chosen" that same way, and
+// swatch-coloured text would lose contrast against the dark fill anyway).
+export function ChipPick({ options, value, onChange, multi = false, swatches }) {
   const selected = multi ? new Set(value || []) : null;
   return (
     <div className="chip-pick">
@@ -78,6 +99,7 @@ export function ChipPick({ options, value, onChange, multi = false }) {
             type="button"
             key={opt}
             className={`chip ${on ? "on" : ""}`}
+            style={!on ? swatchTextStyle(swatches?.[opt]) : undefined}
             onClick={() => {
               if (multi) {
                 const next = new Set(selected);
@@ -170,7 +192,10 @@ export function DupesToggle({ count, open, onToggle }) {
   );
 }
 
-export function FilterGroup({ title, options, selected, onToggle }) {
+// `swatches` is an optional {value: hex} map (see COLOUR_TEXT_HEX) - when
+// given, each option's label renders in that colour so the Colour filter
+// panel reads the same way the colour chip pickers do.
+export function FilterGroup({ title, options, selected, onToggle, swatches }) {
   return (
     <div className="f-group">
       <div className="f-group-title">{title}</div>
@@ -181,7 +206,8 @@ export function FilterGroup({ title, options, selected, onToggle }) {
             checked={selected.has(value)}
             onChange={() => onToggle(value)}
           />
-          {label} {count != null && <span className="f-count">({count})</span>}
+          <span style={swatchTextStyle(swatches?.[value])}>{label}</span>{" "}
+          {count != null && <span className="f-count">({count})</span>}
         </label>
       ))}
     </div>

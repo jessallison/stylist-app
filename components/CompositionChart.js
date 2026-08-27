@@ -1,5 +1,7 @@
 "use client";
 
+import { COLOUR_HEX } from "../lib/style-identity";
+
 // Wardrobe composition: a category donut (single-value field, so shares sum
 // to 100%) plus colour and formality breakdowns as bars (colours are
 // multi-value per item, so these are "N of X pieces", not percentages of a
@@ -23,31 +25,9 @@ const PALETTE = [
   "#a8532e", // clay
 ];
 
-// Approximate swatches for the wardrobe's colour vocabulary - recognisable
-// at a glance, not exact garment matches.
-const COLOUR_HEX = {
-  Black: "#1a1a1a",
-  White: "#faf9f6",
-  Cream: "#f0e6d2",
-  Grey: "#9b9891",
-  Brown: "#6b4a35",
-  Tan: "#c8a876",
-  Denim: "#4a5d7a",
-  Navy: "#1f2b47",
-  Blue: "#3f6d9e",
-  Green: "#4a6b4a",
-  Olive: "#6b6b3f",
-  Yellow: "#e0c34a",
-  Mustard: "#c9a227",
-  Orange: "#d17a3a",
-  Rust: "#a8532e",
-  Red: "#a83232",
-  Burgundy: "#5e1f2e",
-  Pink: "#dba3ab",
-  Purple: "#6b4a7a",
-  Metallic: "#b8b0a0",
-  "Multi / print": "linear-gradient(135deg, #a83232 25%, #3f6d9e 25% 50%, #c9a227 50% 75%, #4a6b4a 75%)",
-};
+// Colour swatches now live in lib/style-identity.js (COLOUR_HEX) - shared
+// with the colour chip pickers and filter panels, so there's one place to
+// update a shade rather than two copies drifting apart.
 
 function countBy(items, fn) {
   const counts = new Map();
