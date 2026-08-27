@@ -1003,10 +1003,16 @@ header.top {
   padding-top: 12px;
 }
 
-/* Card actions as quiet text links, "read now" style. */
+/* Card actions as quiet text links, "read now" style. Padding is generous
+   relative to the text size - these are the smallest tap targets in the
+   app (Save/Love/Not my thing, Style this/I bought it, Edit/Remove), and
+   on a phone a 2px-padding text link is nearly impossible to hit
+   reliably. The invisible padding doesn't change how the link looks,
+   only how forgiving it is to tap. */
 .card-actions .chip {
   border: none;
-  padding: 2px 0;
+  padding: 8px 6px;
+  margin: -8px -6px;
   font-size: 0.6rem;
   font-weight: 600;
   color: var(--ink);

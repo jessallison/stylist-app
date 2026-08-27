@@ -68,7 +68,12 @@ export default function ProfileTab({
     { key: "look", label: "Saved look", photoId: latestLookPhotoId, empty: "Save a look and it lands here" },
   ];
 
-  const [context, setContext] = useState("cold");
+  // Defaults to "all" so the worn-outfits grid shows everything on first
+  // load; "all" isn't a real context though, so wherever a photo actually
+  // needs tagging (the add button, saving a new photo) falls back to
+  // addTarget below rather than using context directly.
+  const [context, setContext] = useState("all");
+  const addTarget = context === "all" ? "cold" : context;
   const [busy, setBusy] = useState(0);
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [idForm, setIdForm] = useState(null);
@@ -117,7 +122,7 @@ export default function ProfileTab({
         flash(up.error);
         return;
       }
-      const item = { id: newId("p"), photoId, hash, context, addedAt: Date.now() };
+      const item = { id: newId("p"), photoId, hash, context: addTarget, addedAt: Date.now() };
       const ok = await save("styleProfile", (cur) => [...cur, item]);
       if (!ok) {
         deleteImage(adminKey, photoId);
@@ -350,6 +355,12 @@ export default function ProfileTab({
       </div>
       <div className="toolbar">
         <div className="chip-pick">
+          <button
+            className={`chip ${context === "all" ? "sel" : ""}`}
+            onClick={() => setContext("all")}
+          >
+            All ({profile.length})
+          </button>
           {PROFILE_CONTEXTS.map(([v, label]) => (
             <button
               key={v}
@@ -363,7 +374,7 @@ export default function ProfileTab({
         </div>
         <PhotoButton
           className="btn"
-          label={busy ? `Adding… (${busy})` : `+ Add to ${PROFILE_CONTEXTS.find(([v]) => v === context)[1]}`}
+          label={busy ? `Adding… (${busy})` : `+ Add to ${PROFILE_CONTEXTS.find(([v]) => v === addTarget)[1]}`}
           onPhoto={addPhoto}
           onError={flash}
           multiple
@@ -396,12 +407,17 @@ export default function ProfileTab({
       )}
       <div className={`grid ${tileSize === "compact" ? "compact" : ""}`}>
         {profile
-          .filter((p) => p.context === context)
+          .filter((p) => context === "all" || p.context === context)
           .sort((a, b) => b.addedAt - a.addedAt)
           .map((p) => (
             <div key={p.id} className="card item-card">
               <Thumb photoId={p.photoId} className="thumb tall" />
               <div className="card-body">
+                {context === "all" && (
+                  <span className="badge">
+                    {PROFILE_CONTEXTS.find(([v]) => v === p.context)?.[1] || p.context}
+                  </span>
+                )}
                 <div className="card-actions">
                   <button className="chip" onClick={() => remove(p)}>
                     Remove
@@ -411,8 +427,10 @@ export default function ProfileTab({
             </div>
           ))}
       </div>
-      {profile.filter((p) => p.context === context).length === 0 && (
-        <div className="empty">Nothing in this folder yet.</div>
+      {profile.filter((p) => context === "all" || p.context === context).length === 0 && (
+        <div className="empty">
+          {context === "all" ? "Log a worn outfit and it lands here." : "Nothing in this folder yet."}
+        </div>
       )}
     </div>
   );
