@@ -702,6 +702,33 @@ header.top {
   display: none;
 }
 
+/* Bare "Style this" link that survives compact mode's card-body: display:none
+   above - only visible when the grid is compact, since the full card-actions
+   row already covers this in normal/large tile view. */
+.compact-style-link {
+  display: none;
+}
+
+.grid.compact .compact-style-link {
+  display: block;
+  width: 100%;
+  text-align: center;
+  border: none;
+  padding: 8px 4px;
+  margin-top: 4px;
+  font-size: 0.56rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  background: transparent;
+}
+
+.grid.compact .compact-style-link:hover {
+  color: var(--muted);
+}
+
 /* --- Tile density toggle ---------------------------------------------------- */
 
 .tile-toggle {
@@ -1239,7 +1266,7 @@ header.top {
 
 .outfit-head {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 14px;

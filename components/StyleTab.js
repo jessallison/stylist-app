@@ -10,6 +10,17 @@ import { newId, norm, PhotoButton, Thumb, uploadImage, deleteImage } from "./sha
 //   C - style an anchor piece (an owned or wanted item, or a just-bought photo)
 //   M - build my own: pick pieces by hand, no AI call at all
 
+// One picked at random each time a suggestion run starts, held steady for
+// the whole loading state rather than re-rolled on every re-render.
+const STYLING_MESSAGES = [
+  "Building the outfit from the inside out",
+  "Checking what actually goes with what",
+  "Making the case for each piece",
+  "Weighing colour against colour",
+  "Ruling things in, ruling things out",
+  "Testing combinations that shouldn't work but do",
+];
+
 export default function StyleTab({
   data,
   save,
@@ -31,6 +42,7 @@ export default function StyleTab({
     justMe: false,
   });
   const [busy, setBusy] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState(STYLING_MESSAGES[0]);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   // Indices dismissed via "Not my thing" - hidden from view immediately,
@@ -79,6 +91,7 @@ export default function StyleTab({
       return;
     }
     setBusy(true);
+    setLoadingMsg(STYLING_MESSAGES[Math.floor(Math.random() * STYLING_MESSAGES.length)]);
     setError(null);
     setResult(null);
     setDismissed(new Set());
@@ -405,9 +418,7 @@ export default function StyleTab({
       </div>
       )}
 
-      {busy && (
-        <div className="empty">Going through the wardrobe like an actual stylist would…</div>
-      )}
+      {busy && <div className="empty">{loadingMsg}…</div>}
       {error && <div className="notice err-notice">{error}</div>}
 
       {result && (

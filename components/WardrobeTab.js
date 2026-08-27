@@ -1135,6 +1135,20 @@ export default function WardrobeTab({
             onClick={() => (bulkMode ? toggleBulk(w.id) : startEdit(w))}
           >
             <Thumb photoId={w.photoId} alt={w.name} />
+            {/* Compact grid hides .card-body entirely (name/meta/badges/all
+                actions) to fit more tiles per row - this is the one action
+                that survives that, as a bare link under the thumb. */}
+            {!bulkMode && (
+              <button
+                className="chip compact-style-link"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStyle(w.id);
+                }}
+              >
+                Style this
+              </button>
+            )}
             <div className="card-body">
               <h3>{w.name}</h3>
               <div className="meta">
