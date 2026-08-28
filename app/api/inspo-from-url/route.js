@@ -33,14 +33,16 @@ function decodeEntities(s) {
     .replace(/&gt;/g, ">");
 }
 
-async function fetchWithLimits(url, accept) {
+async function fetchWithLimits(url, accept, referer) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
   try {
+    const headers = { "User-Agent": UA, Accept: accept };
+    if (referer) headers.Referer = referer;
     return await fetch(url, {
       signal: controller.signal,
       redirect: "follow",
-      headers: { "User-Agent": UA, Accept: accept },
+      headers,
     });
   } finally {
     clearTimeout(timer);
@@ -120,7 +122,10 @@ export async function POST(request) {
           { status: 422 }
         );
       }
-      res = await fetchWithLimits(found, "image/*");
+      // Referer set to the page the image came from - a real browser sends
+      // this loading it as part of viewing that page, and some sites (fashion
+      // retailers in particular) reject a bare image request without one.
+      res = await fetchWithLimits(found, "image/*", pageUrl.toString());
       if (!res.ok) {
         return Response.json({ error: `Couldn't load the image from that page (${res.status})` }, { status: 400 });
       }
