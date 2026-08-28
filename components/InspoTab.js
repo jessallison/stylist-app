@@ -24,6 +24,7 @@ import {
   backfillHashes,
   DuplicatesPanel,
   DupesToggle,
+  fileToDataUrl,
 } from "./shared";
 
 const TYPE_LABEL = Object.fromEntries(INSPO_TYPES);
@@ -55,6 +56,9 @@ export default function InspoTab({
   const [occs, setOccs] = useState(new Set());
   const [seas, setSeas] = useState(new Set());
   const [showDuplicates, setShowDuplicates] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [urlBusy, setUrlBusy] = useState(false);
 
   // One-time backfill so items added before duplicate detection existed get
   // a hash too, and show up in the duplicates panel like anything new.
@@ -86,8 +90,10 @@ export default function InspoTab({
   }
 
   // Upload → classify (Claude vision) → save, one image at a time so a batch
-  // of screenshots can be dropped in together.
-  async function addPhoto(dataUrl) {
+  // of screenshots can be dropped in together. sourceHint pre-fills the
+  // (editable) source field - used when a photo arrived via addFromUrl,
+  // where we already know where it came from.
+  async function addPhoto(dataUrl, sourceHint = "") {
     if (!requireUnlock()) return;
     setBusy((b) => b + 1);
     try {
@@ -121,7 +127,7 @@ export default function InspoTab({
         id: newId("i"),
         photoId,
         hash,
-        source: "",
+        source: sourceHint,
         type: ["outfit", "flatlay", "product"].includes(tags.type)
           ? tags.type
           : "outfit",
@@ -147,6 +153,46 @@ export default function InspoTab({
       }
     } finally {
       setBusy((b) => b - 1);
+    }
+  }
+
+  // Fetches the link server-side (avoids the browser's CORS block on
+  // reading a third-party image into canvas) and hands the result to the
+  // exact same fileToDataUrl → addPhoto pipeline a picked file goes
+  // through, so resizing, tagging and dedup all stay in the one place.
+  async function addFromUrl(e) {
+    e.preventDefault();
+    if (!requireUnlock()) return;
+    const url = urlInput.trim();
+    if (!url) return;
+    setUrlBusy(true);
+    try {
+      const res = await fetch("/api/inspo-from-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        flash(j.error || "Couldn't add that image");
+        return;
+      }
+      const blob = await res.blob();
+      const file = new File([blob], "inspo.jpg", { type: blob.type || "image/jpeg" });
+      const dataUrl = await fileToDataUrl(file);
+      let hostname = "";
+      try {
+        hostname = new URL(url).hostname.replace(/^www\./, "");
+      } catch {
+        /* keep source blank if the URL somehow doesn't parse a second time */
+      }
+      await addPhoto(dataUrl, hostname);
+      setUrlInput("");
+      setShowUrlInput(false);
+    } catch (err) {
+      flash(err.message || "Couldn't add that image");
+    } finally {
+      setUrlBusy(false);
     }
   }
 
@@ -386,6 +432,13 @@ export default function InspoTab({
           onError={flash}
           multiple
         />
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => setShowUrlInput((v) => !v)}
+        >
+          {showUrlInput ? "Cancel" : "+ Add from URL"}
+        </button>
         <DupesToggle
           count={dupGroups.length}
           open={showDuplicates}
@@ -393,6 +446,23 @@ export default function InspoTab({
         />
         <TileToggle size={tileSize} onChange={setTileSize} />
       </div>
+
+      {showUrlInput && (
+        <form className="row" onSubmit={addFromUrl} style={{ marginTop: -4 }}>
+          <input
+            type="url"
+            required
+            autoFocus
+            placeholder="Paste a Pinterest, Depop or product link…"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            style={{ flex: "1 1 auto" }}
+          />
+          <button className="btn" type="submit" disabled={urlBusy}>
+            {urlBusy ? "Adding…" : "Add"}
+          </button>
+        </form>
+      )}
 
       {showDuplicates && (
         <DuplicatesPanel
