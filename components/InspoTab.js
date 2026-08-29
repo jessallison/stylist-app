@@ -60,6 +60,7 @@ export default function InspoTab({
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [urlBusy, setUrlBusy] = useState(false);
+  const [urlProgress, setUrlProgress] = useState(null); // {done, total} while bulk-adding
 
   // One-time backfill so items added before duplicate detection existed get
   // a hash too, and show up in the duplicates panel like anything new.
@@ -157,16 +158,14 @@ export default function InspoTab({
     }
   }
 
-  // Fetches the link server-side (avoids the browser's CORS block on
+  // Fetches one link server-side (avoids the browser's CORS block on
   // reading a third-party image into canvas) and hands the result to the
   // exact same fileToDataUrl → addPhoto pipeline a picked file goes
   // through, so resizing, tagging and dedup all stay in the one place.
-  async function addFromUrl(e) {
-    e.preventDefault();
-    if (!requireUnlock()) return;
-    const url = urlInput.trim();
-    if (!url) return;
-    setUrlBusy(true);
+  // Returns an error string on failure, or null on success, rather than
+  // flashing directly - addFromUrl below decides how to report it
+  // depending on whether this is one link or a batch of them.
+  async function addOneUrl(url) {
     try {
       const res = await fetch("/api/inspo-from-url", {
         method: "POST",
@@ -175,8 +174,7 @@ export default function InspoTab({
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        flash(j.error || "Couldn't add that image");
-        return;
+        return j.error || "Couldn't add that image";
       }
       const blob = await res.blob();
       const file = new File([blob], "inspo.jpg", { type: blob.type || "image/jpeg" });
@@ -188,13 +186,56 @@ export default function InspoTab({
         /* keep source blank if the URL somehow doesn't parse a second time */
       }
       await addPhoto(dataUrl, hostname);
+      return null;
+    } catch (err) {
+      return err.message || "Couldn't add that image";
+    }
+  }
+
+  // One link per line, so pasting a whole board's worth of saved image
+  // addresses in one go works the same as adding one - sequential, not
+  // parallel, so a batch of seventy doesn't hammer the tagging API at once
+  // and progress can be shown as it goes. A single link keeps its old,
+  // more specific behaviour on failure (message stays visible, box stays
+  // open to fix and retry); a batch always clears and closes, with a
+  // summary - reopening the box to fix one bad line out of seventy isn't
+  // realistic, knowing what went wrong for the others is.
+  async function addFromUrl(e) {
+    e.preventDefault();
+    if (!requireUnlock()) return;
+    const urls = [...new Set(urlInput.split("\n").map((s) => s.trim()).filter(Boolean))];
+    if (!urls.length) return;
+    const bulk = urls.length > 1;
+    setUrlBusy(true);
+    if (bulk) setUrlProgress({ done: 0, total: urls.length });
+    let failed = 0;
+    const errors = new Set();
+    for (let i = 0; i < urls.length; i++) {
+      const err = await addOneUrl(urls[i]);
+      if (err) {
+        failed++;
+        errors.add(err);
+      }
+      if (bulk) setUrlProgress({ done: i + 1, total: urls.length });
+    }
+    setUrlBusy(false);
+    setUrlProgress(null);
+    if (!bulk) {
+      if (failed) {
+        flash([...errors][0]);
+        return;
+      }
       setUrlInput("");
       setShowUrlInput(false);
-    } catch (err) {
-      flash(err.message || "Couldn't add that image");
-    } finally {
-      setUrlBusy(false);
+      return;
     }
+    setUrlInput("");
+    setShowUrlInput(false);
+    flash(
+      failed
+        ? `Added ${urls.length - failed} of ${urls.length} - ${failed} didn't come through. Most likely reason: ${[...errors][0]}`
+        : `Added all ${urls.length}`
+    );
   }
 
   function startEdit(item) {
@@ -490,18 +531,21 @@ export default function InspoTab({
       </div>
 
       {showUrlInput && (
-        <form className="row" onSubmit={addFromUrl} style={{ marginTop: -4 }}>
-          <input
-            type="url"
+        <form className="row" onSubmit={addFromUrl} style={{ marginTop: -4, alignItems: "flex-start" }}>
+          <textarea
             required
             autoFocus
-            placeholder="Paste a Pinterest, Depop or product link…"
+            rows={3}
+            placeholder={
+              "Paste one or more image links, one per line…\n" +
+              "Pinterest: right-click the photo itself (not the pin page) and copy its image address - a pin page link won't work."
+            }
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             style={{ flex: "1 1 auto" }}
           />
           <button className="btn" type="submit" disabled={urlBusy}>
-            {urlBusy ? "Adding…" : "Add"}
+            {urlProgress ? `Adding… (${urlProgress.done}/${urlProgress.total})` : urlBusy ? "Adding…" : "Add"}
           </button>
         </form>
       )}
