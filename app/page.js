@@ -58,6 +58,41 @@ export default function Home() {
     }
   }
 
+  // Dark mode. `theme` only tracks the CURRENT APPEARANCE, for the toggle
+  // button's own label/state - it's not "has she made an explicit choice".
+  // Until she taps the toggle, no data-theme attribute is set at all, and
+  // globals.css's @media (prefers-color-scheme: dark) block does the actual
+  // work, so the site already opens dark for a dark-OS visitor with zero JS
+  // needed. This effect only reads matchMedia once, on mount, to get that
+  // same starting point into the button's own state (so "Dark"/"Light"
+  // shows the right next action from the first render) - it doesn't keep
+  // listening for the OS preference changing later, since once she's
+  // toggled explicitly her choice should stick regardless of the OS.
+  const [theme, setThemeState] = useState("light");
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("stylist-theme");
+      if (stored === "light" || stored === "dark") {
+        setThemeState(stored);
+        document.documentElement.setAttribute("data-theme", stored);
+      } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        setThemeState("dark");
+      }
+    } catch {
+      /* localStorage/matchMedia unavailable - stay on the light default */
+    }
+  }, []);
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setThemeState(next);
+    document.documentElement.setAttribute("data-theme", next);
+    try {
+      localStorage.setItem("stylist-theme", next);
+    } catch {
+      /* best-effort persistence only */
+    }
+  }
+
   // Viewing needs the password too. First load tries the stored key; a 401
   // means the whole app stays behind the gate until login succeeds (which
   // also sets the cookie that authenticates <img> requests).
@@ -436,6 +471,14 @@ export default function Home() {
               {label}
             </button>
           ))}
+          <button
+            className="theme-btn"
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={theme === "dark" ? "Light mode" : "Dark mode"}
+          >
+            {theme === "dark" ? "Light" : "Dark"}
+          </button>
           <button
             className={`lock-btn ${unlocked ? "unlocked" : ""}`}
             onClick={lockToggle}

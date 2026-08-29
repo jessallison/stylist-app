@@ -16,6 +16,44 @@
   --serif: var(--font-display), Georgia, "Times New Roman", serif;
 }
 
+/* Dark mode: same warm, ink-on-paper character inverted, not a cold
+   blue-black. --accent stays the same value in both themes - it's paired
+   with --ink as foreground text (.chip.sel, .btn.ghost.has-filters), which
+   already flips, so the contrast holds without a second value. --alert and
+   --alert-soft don't have that luxury (--alert is used directly as text on
+   the page background, not paired with a flipping variable), so they get
+   their own dark values, brightened/darkened to keep the same
+   text-on-wash contrast relationship.
+   Applied two ways: the @media block is what a first paint sees before
+   the toggle's own effect (in page.js) has run, so it follows the OS
+   preference until then; :root[data-theme] is what the toggle itself sets,
+   and always wins since it's not gated by the media query. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #16130f;
+    --card: #1e1a15;
+    --tile: #24201a;
+    --ink: #f2ede4;
+    --muted: #a89f8f;
+    --line: #35302a;
+    --line-dark: #f2ede4;
+    --alert: #d98f5c;
+    --alert-soft: #3a2617;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #16130f;
+  --card: #1e1a15;
+  --tile: #24201a;
+  --ink: #f2ede4;
+  --muted: #a89f8f;
+  --line: #35302a;
+  --line-dark: #f2ede4;
+  --alert: #d98f5c;
+  --alert-soft: #3a2617;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -173,11 +211,16 @@ header.top {
   border-bottom-color: var(--ink);
 }
 
-.top-nav .lock-btn {
+.top-nav .theme-btn {
   margin-left: 14px;
 }
 
-.lock-btn {
+.top-nav .lock-btn {
+  margin-left: 6px;
+}
+
+.lock-btn,
+.theme-btn {
   font-size: 0.62rem;
   font-weight: 500;
   color: var(--muted);
@@ -1756,11 +1799,16 @@ header.top {
   .flow-btn:last-child {
     border-bottom: none;
   }
-  /* Nav wraps to two lines here - Lock ends up sharing a row with whichever
-     tab wraps last (Profile) at only 14px apart, reading as if it's part of
-     the tab group. Push it to the far right of its row instead. */
-  .top-nav .lock-btn {
+  /* Nav wraps to two lines here - Dark/Lock end up sharing a row with
+     whichever tab wraps last (Profile) at only 14px apart, reading as if
+     they're part of the tab group. Push the pair to the far right of its
+     row instead - theme-btn carries the auto margin since it's first,
+     lock-btn just keeps its normal small gap after it. */
+  .top-nav .theme-btn {
     margin-left: auto;
+  }
+  .top-nav .lock-btn {
+    margin-left: 6px;
   }
   /* 16px inputs stop iOS Safari auto-zooming on focus. */
   input,
