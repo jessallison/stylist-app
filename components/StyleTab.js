@@ -498,7 +498,7 @@ export default function StyleTab({
           )}
           <div className="try-again-row">
             <button className="chip" onClick={() => run()} disabled={busy}>
-              {busy ? "Styling…" : "None of these - try again"}
+              {busy ? "Styling…" : "Let's try some other options"}
             </button>
           </div>
         </div>
@@ -515,8 +515,7 @@ export default function StyleTab({
         <>
           <div className="section-h">Saved looks ({looks.length})</div>
           <div className="section-sub">
-            Suggestions you&rsquo;ve kept - outfits reference the wardrobe, so
-            photos stay current.
+            Suggestions you&rsquo;ve kept, showing current wardrobe photos.
           </div>
           <div className="results saved-looks">
             {[...looks]
