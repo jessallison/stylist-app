@@ -242,7 +242,7 @@ Reply with ONLY a JSON object:
 {
   "outfits": [
     {
-      "title": "short evocative name",
+      "title": "short evocative name, sentence case (e.g. 'Effortless weekend layers', not 'Effortless Weekend Layers')",
       "item_ids": ["id", ...],
       "formula": "matching REGULAR or empty string",
       "why": "one or two sentences on why this works and how it fits their three words",

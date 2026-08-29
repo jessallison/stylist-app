@@ -95,7 +95,7 @@ Reply with ONLY a JSON object, no other text:
   "colours": array of 1-3 dominant colours from [${list(COLOURS)}],
   "tags": array of 0-3 from [${list(vocab)}] that clearly apply to the vibe of this image,
   "description": "one sentence on what the look or item is",
-  "productName": "if type is product: a short natural name for the item, else empty string"
+  "productName": "if type is product: a short natural name for the item, sentence case e.g. 'Cream wide-leg trousers', else empty string"
 }`;
 
   try {
