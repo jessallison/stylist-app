@@ -506,6 +506,11 @@ export async function backfillHashes(type, items, setData, adminKey, dataRef) {
   if (!Object.keys(hashes).length) return;
   const current = (dataRef?.current?.[type]) || items;
   const next = current.map((it) => (hashes[it.id] ? { ...it, hash: hashes[it.id] } : it));
+  // Keep dataRef authoritative the instant we write, not just after setData's
+  // updater eventually runs - a second mount-time fixup racing this one (a
+  // migration, say) needs to see this change immediately, the same reason
+  // save() in page.js does this directly rather than via its own effect.
+  if (dataRef) dataRef.current = { ...dataRef.current, [type]: next };
   setData((d) => ({ ...d, [type]: next }));
   try {
     await fetch("/api/save", {
