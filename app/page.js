@@ -150,29 +150,30 @@ export default function Home() {
   // save("wardrobe", nextArray) or save("inspo", (cur) => next). Rolls back
   // local state if the server rejects the write.
   //
-  // `computed` is deliberately worked out here, from the `data` already in
-  // scope, rather than inside the setData() updater below. It used to be
-  // computed inside that updater (matching `d[type]` instead of the outer
-  // `data[type]`) on the theory that a function update always sees the
-  // freshest state - but React doesn't guarantee an updater runs before the
-  // very next line reads a variable it assigned, so `computed` would
-  // intermittently still be undefined when the fetch body was built,
-  // failing the save outright with no visible cause. That's what broke a
-  // plain first-time wardrobe save on 27 Aug: every tab now backfills photo
-  // hashes on mount (see backfillHashes in shared.js), which fires a
-  // setData of its own in the background and was often enough to trigger
-  // the timing gap on an ordinary save shortly after page load.
+  // `computed` is deliberately worked out here, synchronously, rather than
+  // inside the setData() updater below - React doesn't guarantee an updater
+  // runs before the very next line reads a variable it assigned, so
+  // `computed` would intermittently still be undefined when the fetch body
+  // was built, failing the save outright with no visible cause. That's what
+  // broke a plain first-time wardrobe save on 27 Aug: every tab now
+  // backfills photo hashes on mount (see backfillHashes in shared.js),
+  // which fires a setData of its own in the background and was often
+  // enough to trigger the timing gap on an ordinary save shortly after
+  // page load.
   //
-  // Every call site here either fires once per user action or awaits each
-  // save() fully before the next (see the multi-photo loop in PhotoButton),
-  // so `data` in scope is never more than one render behind - there's
-  // nothing left for the functional form to protect against. A future call
-  // site that needs to fire save() several times without an await between
-  // each one should bypass this helper the same way StyleTab's feedback
-  // recorder and backfillHashes do: compute the full next value as a plain
-  // value first, then setData and POST from that directly.
+  // `prev` reads dataRef.current, not the `data` closed over by this render,
+  // for the same reason backfillHashes does (see the dataRef comment above):
+  // any call site that fires save() more than once without an await on a
+  // fresh render in between - a multi-photo picker, a multi-URL paste -
+  // would otherwise have every call after the first compute `prev` from the
+  // same stale snapshot the first call started from, silently dropping
+  // everything but the last item written. Found 29 Aug via a multi-URL
+  // inspo import that kept ending up with one photo instead of several;
+  // the exact same loop shape already existed in PhotoButton's multi-file
+  // picker, so this had been quietly dropping photos from any multi-select
+  // upload since it shipped.
   async function save(type, next) {
-    const prev = data[type];
+    const prev = dataRef.current[type];
     const computed = typeof next === "function" ? next(prev) : next;
     setData((d) => ({ ...d, [type]: computed }));
     let res;
