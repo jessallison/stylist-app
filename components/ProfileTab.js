@@ -7,6 +7,7 @@ import {
   PhotoButton,
   Thumb,
   TileToggle,
+  TagCloud,
   uploadImage,
   deleteImage,
   hashDataUrl,
@@ -38,6 +39,13 @@ export default function ProfileTab({
   const inspo = data.inspo || [];
   const looks = data.looks || [];
   const byId = Object.fromEntries(wardrobe.map((w) => [w.id, w]));
+
+  // How often each vocab word actually shows up across owned pieces - what
+  // the size-weighted cloud below is drawn from.
+  const vocabCounts = {};
+  for (const w of wardrobe) {
+    for (const t of w.tags || []) vocabCounts[t] = (vocabCounts[t] || 0) + 1;
+  }
 
   // A saved look only carries its own photo when it was built around a
   // freshly-photographed "NEW" piece - otherwise borrow the first item's
@@ -219,16 +227,13 @@ export default function ProfileTab({
             <div className="meta" style={{ marginTop: 10 }}>
               <b>Vocabulary:</b>
             </div>
-            <div className="chip-pick vocab-chips">
-              {settings.vocab.map((v) => (
-                <button
-                  key={v}
-                  className={`chip ${vocabFocus === v ? "sel" : ""}`}
-                  onClick={() => setVocabFocus(vocabFocus === v ? null : v)}
-                >
-                  {v}
-                </button>
-              ))}
+            <div className="vocab-chips">
+              <TagCloud
+                options={settings.vocab}
+                counts={vocabCounts}
+                value={vocabFocus}
+                onChange={setVocabFocus}
+              />
             </div>
             <div className="meta" style={{ marginTop: 8 }}>
               <b>Regulars:</b>
@@ -372,9 +377,8 @@ export default function ProfileTab({
 
       <div className="section-h">Worn outfits</div>
       <div className="section-sub">
-        Photos of looks that worked, exported by hand from Stylebook&rsquo;s Cold
-        Weather / Warm Weather / Fancy folders. &ldquo;Just me&rdquo; suggestions
-        use these as grounding.
+        Photos of looks that worked. &ldquo;Just me&rdquo; suggestions use these
+        as grounding.
       </div>
       <div className="toolbar">
         <div className="chip-pick">

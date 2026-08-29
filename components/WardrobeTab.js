@@ -13,7 +13,6 @@ import {
   newId,
   toggleIn,
   ChipPick,
-  TagCloud,
   FilterGroup,
   PhotoButton,
   Thumb,
@@ -99,12 +98,6 @@ export default function WardrobeTab({
 }) {
   const wardrobe = data.wardrobe;
   const vocab = data.settings.vocab || [];
-  // Usage counts across the whole wardrobe (not the current search/filter
-  // view) - drives the tag cloud's frequency sizing in the item form.
-  const tagCounts = {};
-  for (const w of wardrobe) {
-    for (const t of w.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1;
-  }
   // Brand facet is derived from whatever's been entered - no maintained list.
   // Declared up here (not just where the filter panel uses it) because the
   // item form's brand autocomplete needs it too, and the form can render
@@ -148,6 +141,26 @@ export default function WardrobeTab({
     if (backfillRan.current) return;
     backfillRan.current = true;
     backfillHashes("wardrobe", wardrobe, setData, adminKey, dataRef);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // One-time fix for items still carrying the pre-rename "Knitwear" category
+  // string (see lib/style-identity.js - CATEGORIES now has "Knitwear &
+  // jumpers" instead). A stale value here doesn't error, it just silently
+  // stops matching any category chip or filter, so an item can look
+  // uncategorised without anything visibly failing. Self-healing: runs once
+  // per load, a no-op as soon as nothing matches any more.
+  const categoryMigrationRan = useRef(false);
+  useEffect(() => {
+    if (categoryMigrationRan.current) return;
+    categoryMigrationRan.current = true;
+    if (!wardrobe.some((w) => w.category === "Knitwear")) return;
+    save(
+      "wardrobe",
+      wardrobe.map((w) =>
+        w.category === "Knitwear" ? { ...w, category: "Knitwear & jumpers" } : w
+      )
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -669,10 +682,10 @@ export default function WardrobeTab({
         </div>
         <div>
           <label>Style tags</label>
-          <TagCloud
+          <ChipPick
             options={vocab}
-            counts={tagCounts}
             value={form.tags}
+            multi
             onChange={(v) => setForm({ ...form, tags: v })}
           />
           <div className="row" style={{ marginTop: 8 }}>

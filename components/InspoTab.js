@@ -13,7 +13,6 @@ import {
   newId,
   toggleIn,
   ChipPick,
-  TagCloud,
   FilterGroup,
   PhotoButton,
   Thumb,
@@ -46,13 +45,6 @@ export default function InspoTab({
 }) {
   const inspo = data.inspo;
   const vocab = data.settings.vocab || [];
-  // Scoped to inspo's own tag usage, not wardrobe's - "how often have I
-  // tagged an inspo image 'oversized'" is a different signal to the same
-  // question about wardrobe pieces, even though both draw from one vocab.
-  const tagCounts = {};
-  for (const i of inspo) {
-    for (const t of i.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1;
-  }
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(null);
@@ -333,10 +325,10 @@ export default function InspoTab({
         </div>
         <div>
           <label>Style tags</label>
-          <TagCloud
+          <ChipPick
             options={vocab}
-            counts={tagCounts}
             value={form.tags || []}
+            multi
             onChange={(v) => setForm({ ...form, tags: v })}
           />
           <div className="row" style={{ marginTop: 8 }}>
