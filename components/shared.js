@@ -86,9 +86,13 @@ export function fileToDataUrl(file, maxDim = 900, quality = 0.8) {
               const canvas = document.createElement("canvas");
               canvas.width = Math.max(1, Math.round(img.width * scale));
               canvas.height = Math.max(1, Math.round(img.height * scale));
-              canvas
-                .getContext("2d")
-                .drawImage(img, 0, 0, canvas.width, canvas.height);
+              const ctx = canvas.getContext("2d");
+              // JPEG has no alpha channel - without this, a transparent PNG
+              // (a product cutout, say) composites onto black by default per
+              // the canvas spec, not white as you'd expect.
+              ctx.fillStyle = "#fff";
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
               const out = canvas.toDataURL("image/jpeg", q);
               // Stay under the server's 900KB cap with headroom.
               if (out.length < 650_000) return resolve(out);
@@ -312,6 +316,10 @@ export function rotateDataUrl(dataUrl, degrees = 90) {
         canvas.width = swap ? img.height : img.width;
         canvas.height = swap ? img.width : img.height;
         const ctx = canvas.getContext("2d");
+        // Same JPEG-has-no-alpha guard as fileToDataUrl - fill before
+        // rotating, in the canvas's own (untransformed) coordinate space.
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((degrees * Math.PI) / 180);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
