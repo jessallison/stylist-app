@@ -235,6 +235,21 @@ header.top {
   padding: 6px 10px;
 }
 
+/* TagCloud - font-size is set inline per-chip (frequency-driven), so this
+   only carries layout; align-items: baseline keeps differently-sized chips
+   sitting on the same line rather than each vertically centring in its own
+   row, which is what actually makes it read as a cloud. */
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 8px;
+}
+
+.tag-cloud .chip {
+  padding: 5px 10px;
+}
+
 .btn {
   background: var(--ink);
   color: var(--bg);

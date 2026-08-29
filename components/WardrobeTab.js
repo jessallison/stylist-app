@@ -13,6 +13,7 @@ import {
   newId,
   toggleIn,
   ChipPick,
+  TagCloud,
   FilterGroup,
   PhotoButton,
   Thumb,
@@ -93,6 +94,12 @@ export default function WardrobeTab({
 }) {
   const wardrobe = data.wardrobe;
   const vocab = data.settings.vocab || [];
+  // Usage counts across the whole wardrobe (not the current search/filter
+  // view) - drives the tag cloud's frequency sizing in the item form.
+  const tagCounts = {};
+  for (const w of wardrobe) {
+    for (const t of w.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1;
+  }
   // Brand facet is derived from whatever's been entered - no maintained list.
   // Declared up here (not just where the filter panel uses it) because the
   // item form's brand autocomplete needs it too, and the form can render
@@ -629,10 +636,10 @@ export default function WardrobeTab({
         </div>
         <div>
           <label>Style tags</label>
-          <ChipPick
+          <TagCloud
             options={vocab}
+            counts={tagCounts}
             value={form.tags}
-            multi
             onChange={(v) => setForm({ ...form, tags: v })}
           />
           <div className="row" style={{ marginTop: 8 }}>

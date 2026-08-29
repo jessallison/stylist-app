@@ -178,6 +178,47 @@ export function ChipPick({ options, value, onChange, multi = false, swatches }) 
   );
 }
 
+// Same click-to-toggle idea as ChipPick, but sized by how often each tag's
+// already been used - the tag picker on the Wardrobe and Inspo item forms,
+// so patterns already in the data (both share settings.vocab) read visually
+// as a cloud instead of a flat list. `counts` is a plain {tag: n} map the
+// caller derives from its own collection (wardrobe items or inspo images) -
+// deliberately not computed in here, since "how often" means something
+// different in each. No separate step needed to populate it: a tag typed
+// into "Add a new tag" joins vocab immediately and appears here, small,
+// on the very next item.
+export function TagCloud({ options, counts, value, onChange }) {
+  if (!options.length) return null;
+  const selected = new Set(value || []);
+  const max = Math.max(1, ...options.map((o) => counts?.[o] || 0));
+  return (
+    <div className="tag-cloud">
+      {options.map((opt) => {
+        const on = selected.has(opt);
+        const n = counts?.[opt] || 0;
+        // 0.6rem-0.95rem, matching ChipPick's own 0.6rem base at the low end
+        // so an unused tag doesn't look broken, just quiet.
+        const size = 0.6 + (n / max) * 0.35;
+        return (
+          <button
+            type="button"
+            key={opt}
+            className={`chip ${on ? "on" : ""}`}
+            style={{ fontSize: `${size.toFixed(2)}rem` }}
+            onClick={() => {
+              const next = new Set(selected);
+              on ? next.delete(opt) : next.add(opt);
+              onChange([...next]);
+            }}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // Tile-density toggle for the Wardrobe/Inspo grids - "compact" (more, smaller,
 // no text) vs "large" (fewer, bigger, with name/meta), same idea as the
 // grid-density switch on shopping sites. State lives in page.js (localStorage

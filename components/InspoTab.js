@@ -13,6 +13,7 @@ import {
   newId,
   toggleIn,
   ChipPick,
+  TagCloud,
   FilterGroup,
   PhotoButton,
   Thumb,
@@ -45,9 +46,17 @@ export default function InspoTab({
 }) {
   const inspo = data.inspo;
   const vocab = data.settings.vocab || [];
+  // Scoped to inspo's own tag usage, not wardrobe's - "how often have I
+  // tagged an inspo image 'oversized'" is a different signal to the same
+  // question about wardrobe pieces, even though both draw from one vocab.
+  const tagCounts = {};
+  for (const i of inspo) {
+    for (const t of i.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1;
+  }
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(null);
+  const [newTag, setNewTag] = useState(""); // pending text for "add a new style tag"
   const [busy, setBusy] = useState(0); // uploads in flight
   const [showFilters, setShowFilters] = useState(false);
   const [types, setTypes] = useState(new Set());
@@ -200,6 +209,30 @@ export default function InspoTab({
     if (!requireUnlock()) return;
     setForm({ ...item });
     setEditingId(item.id);
+    setNewTag("");
+  }
+
+  // Same "type it once, it's in the cloud from here on" mechanic as
+  // Wardrobe's addNewTag - vocab is shared between the two tabs, so a tag
+  // typed here shows up over there too, and vice versa. Matches
+  // case-insensitively so "Oversized" and "oversized" don't end up as two
+  // separate tags.
+  async function addNewTag() {
+    const word = newTag.trim();
+    if (!word) return;
+    const existing = vocab.find((v) => norm(v) === norm(word));
+    if (existing) {
+      if (!(form.tags || []).includes(existing)) {
+        setForm({ ...form, tags: [...(form.tags || []), existing] });
+      }
+      setNewTag("");
+      return;
+    }
+    const ok = await save("settings", (prev) => ({ ...prev, vocab: [...(prev.vocab || []), word] }));
+    if (ok) {
+      setForm({ ...form, tags: [...(form.tags || []), word] });
+      setNewTag("");
+    }
   }
 
   async function submit(e) {
@@ -300,12 +333,29 @@ export default function InspoTab({
         </div>
         <div>
           <label>Style tags</label>
-          <ChipPick
+          <TagCloud
             options={vocab}
+            counts={tagCounts}
             value={form.tags || []}
-            multi
             onChange={(v) => setForm({ ...form, tags: v })}
           />
+          <div className="row" style={{ marginTop: 8 }}>
+            <input
+              type="text"
+              placeholder="Add a new tag…"
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addNewTag();
+                }
+              }}
+            />
+            <button type="button" className="chip" onClick={addNewTag} disabled={!newTag.trim()}>
+              Add
+            </button>
+          </div>
         </div>
         <div>
           <label>Notes</label>
