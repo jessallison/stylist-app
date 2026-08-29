@@ -18,53 +18,90 @@ export function toggleIn(set, value, setter) {
   setter(next);
 }
 
+// HEIC/HEIF (iPhone's native photo format when "Most Compatible" isn't
+// turned on, or anything pulled from the Files app rather than the photo
+// picker) can't be decoded by <img> in any browser - it just fires onerror.
+// Detected by MIME type and, since Safari/iOS often leaves the file's type
+// blank, by extension too.
+const HEIC_EXT_RE = /\.hei[cf]$/i;
+function looksLikeHeic(file) {
+  const type = (file.type || "").toLowerCase();
+  return type === "image/heic" || type === "image/heif" || HEIC_EXT_RE.test(file.name || "");
+}
+
+// Dynamic import so the ~3MB decoder only loads for the rare HEIC upload,
+// never adding to the bundle every other photo pick pays for.
+async function convertHeicToJpeg(file) {
+  const { heicTo } = await import("heic-to");
+  const blob = await heicTo({ blob: file, type: "image/jpeg", quality: 0.92 });
+  // Re-wrap as a File (not just a Blob) so downstream error messages still
+  // reference a sensible name instead of "file".
+  return new File([blob], (file.name || "photo").replace(HEIC_EXT_RE, ".jpg"), {
+    type: "image/jpeg",
+  });
+}
+
 // Read a picked file, downscale and re-encode as JPEG so a 4MB phone photo
 // becomes a ~100KB record. Steps the size down further if the first pass is
 // still too big (very long screenshots), so uploads never bounce off the
-// server's size cap. Returns a data URL.
-// Note: browsers can't decode HEIC via <img> - iOS converts photo-picker
-// picks to JPEG automatically, but a raw .heic from the Files app will fail
-// here and surfaces as "couldn't read" rather than a silent skip.
+// server's size cap. Returns a data URL. HEIC/HEIF files are converted to
+// JPEG first (see convertHeicToJpeg above), then flow through the same
+// resize pipeline as everything else.
 export function fileToDataUrl(file, maxDim = 900, quality = 0.8) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () =>
-      reject(new Error(`Couldn't read "${file.name || "file"}"`));
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () =>
-        reject(
-          new Error(
-            `Couldn't read "${file.name || "file"}" as an image (HEIC files need converting to JPEG first)`
-          )
-        );
-      img.onload = () => {
+    (async () => {
+      let source = file;
+      if (looksLikeHeic(file)) {
         try {
-          const attempts = [
-            [maxDim, quality],
-            [700, 0.72],
-            [550, 0.6],
-          ];
-          for (const [dim, q] of attempts) {
-            const scale = Math.min(1, dim / Math.max(img.width, img.height));
-            const canvas = document.createElement("canvas");
-            canvas.width = Math.max(1, Math.round(img.width * scale));
-            canvas.height = Math.max(1, Math.round(img.height * scale));
-            canvas
-              .getContext("2d")
-              .drawImage(img, 0, 0, canvas.width, canvas.height);
-            const out = canvas.toDataURL("image/jpeg", q);
-            // Stay under the server's 900KB cap with headroom.
-            if (out.length < 650_000) return resolve(out);
-          }
-          reject(new Error(`"${file.name || "Image"}" is too large to compress`));
+          source = await convertHeicToJpeg(file);
         } catch (e) {
-          reject(e);
+          reject(
+            new Error(
+              `Couldn't convert "${file.name || "that HEIC file"}" - try exporting it as JPEG first`
+            )
+          );
+          return;
         }
+      }
+      const reader = new FileReader();
+      reader.onerror = () =>
+        reject(new Error(`Couldn't read "${file.name || "file"}"`));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () =>
+          reject(
+            new Error(
+              `Couldn't read "${file.name || "file"}" as an image (HEIC files need converting to JPEG first)`
+            )
+          );
+        img.onload = () => {
+          try {
+            const attempts = [
+              [maxDim, quality],
+              [700, 0.72],
+              [550, 0.6],
+            ];
+            for (const [dim, q] of attempts) {
+              const scale = Math.min(1, dim / Math.max(img.width, img.height));
+              const canvas = document.createElement("canvas");
+              canvas.width = Math.max(1, Math.round(img.width * scale));
+              canvas.height = Math.max(1, Math.round(img.height * scale));
+              canvas
+                .getContext("2d")
+                .drawImage(img, 0, 0, canvas.width, canvas.height);
+              const out = canvas.toDataURL("image/jpeg", q);
+              // Stay under the server's 900KB cap with headroom.
+              if (out.length < 650_000) return resolve(out);
+            }
+            reject(new Error(`"${file.name || "Image"}" is too large to compress`));
+          } catch (e) {
+            reject(e);
+          }
+        };
+        img.src = reader.result;
       };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(source);
+    })();
   });
 }
 
@@ -241,7 +278,7 @@ export function PhotoButton({ label, onPhoto, onError, multiple = false, classNa
       {label}
       <input
         type="file"
-        accept="image/*"
+        accept="image/*,.heic,.heif"
         multiple={multiple}
         style={{ display: "none" }}
         onChange={async (e) => {
