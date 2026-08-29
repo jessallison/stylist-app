@@ -638,7 +638,11 @@ export default function InspoTab({
                   onAddWanted(i);
                 }}
               >
-                Add to wardrobe
+                {/* Shorter than the full-view "Add to wardrobe" (card-actions
+                    below, not width-constrained) - at compact-tile width
+                    that wrapped onto two lines with the underline breaking
+                    mid-word, which read as broken rather than just narrow. */}
+                + Wardrobe
               </button>
             ) : (
               <button
