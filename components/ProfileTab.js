@@ -292,6 +292,11 @@ export default function ProfileTab({
       {editingIdentity && (
         <form className="form" onSubmit={saveIdentity}>
           <label>Three words</label>
+          <div className="meta">
+            e.g. &ldquo;Oversized&rdquo; - roomy, not fitted. The word&rsquo;s
+            yours; the meaning is what it means when YOU dress, since the same
+            word can mean something different to someone else.
+          </div>
           {idForm.threeWords.map((t, i) => (
             <div className="cols three-word-row" key={i}>
               <input
@@ -354,8 +359,14 @@ export default function ProfileTab({
           </div>
           <div>
             <label>Confirmed regulars (one per line)</label>
+            <div className="meta">
+              Whole outfit formulas you already know work, not single pieces -
+              the app reaches for these before reasoning from scratch, e.g.
+              &ldquo;navy chinos, white oxford shirt, brown boots&rdquo;.
+            </div>
             <textarea
               rows={6}
+              placeholder={"e.g.\nnavy chinos, white oxford shirt, brown boots\nblack jeans, grey tee, white sneakers"}
               value={idForm.regulars}
               onChange={(e) => setIdForm({ ...idForm, regulars: e.target.value })}
             />
