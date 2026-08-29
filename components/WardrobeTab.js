@@ -64,7 +64,7 @@ const EMPTY_FORM = {
   brand: "",
   category: "Tops",
   colours: [],
-  season: "All year",
+  season: "All seasons",
   formality: "Casual",
   tags: [],
   status: "owned",
@@ -134,33 +134,42 @@ export default function WardrobeTab({
   const [rotating, setRotating] = useState(false);
   const [showDuplicates, setShowDuplicates] = useState(false);
 
-  // One-time backfill so items added before duplicate detection existed get
-  // a hash too, and show up in the duplicates panel like anything new.
-  const backfillRan = useRef(false);
+  // Mount-time fixups - hash backfill, then the category-rename and
+  // season-rename migrations - run sequentially in ONE effect rather than as
+  // three independent ones. These used to be three separate effects, each
+  // calling save("wardrobe", ...) off its own stale closure snapshot of
+  // `wardrobe`. Harmless alone, but when two stale values are present on the
+  // same load (e.g. an item still has both "Knitwear" and "All year"), each
+  // effect computes a full "next array" from its own snapshot, unaware of
+  // the other's change, and whichever's fetch finishes last silently
+  // overwrites the other (save() does a full replace, not a merge). Found 29
+  // Aug via a test seeding both stale values on one item: only the
+  // last-to-finish migration survived. Awaiting each step and folding both
+  // renames into a single save() call removes the race entirely.
+  const migrationRan = useRef(false);
   useEffect(() => {
-    if (backfillRan.current) return;
-    backfillRan.current = true;
-    backfillHashes("wardrobe", wardrobe, setData, adminKey, dataRef);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // One-time fix for items still carrying the pre-rename "Knitwear" category
-  // string (see lib/style-identity.js - CATEGORIES now has "Knitwear &
-  // jumpers" instead). A stale value here doesn't error, it just silently
-  // stops matching any category chip or filter, so an item can look
-  // uncategorised without anything visibly failing. Self-healing: runs once
-  // per load, a no-op as soon as nothing matches any more.
-  const categoryMigrationRan = useRef(false);
-  useEffect(() => {
-    if (categoryMigrationRan.current) return;
-    categoryMigrationRan.current = true;
-    if (!wardrobe.some((w) => w.category === "Knitwear")) return;
-    save(
-      "wardrobe",
-      wardrobe.map((w) =>
-        w.category === "Knitwear" ? { ...w, category: "Knitwear & jumpers" } : w
-      )
-    );
+    if (migrationRan.current) return;
+    migrationRan.current = true;
+    (async () => {
+      await backfillHashes("wardrobe", wardrobe, setData, adminKey, dataRef);
+      const current = dataRef.current?.wardrobe || wardrobe;
+      const needsCategory = current.some((w) => w.category === "Knitwear");
+      const needsSeason = current.some((w) => w.season === "All year");
+      if (!needsCategory && !needsSeason) return;
+      await save(
+        "wardrobe",
+        current.map((w) => {
+          let next = w;
+          if (next.category === "Knitwear") {
+            next = { ...next, category: "Knitwear & jumpers" };
+          }
+          if (next.season === "All year") {
+            next = { ...next, season: "All seasons" };
+          }
+          return next;
+        })
+      );
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -273,7 +282,7 @@ export default function WardrobeTab({
       brand: item.brand || "",
       category: item.category || "Tops",
       colours: item.colours || [],
-      season: item.season || "All year",
+      season: item.season || "All seasons",
       formality: item.formality || "Casual",
       tags: item.tags || [],
       status: item.status || "owned",

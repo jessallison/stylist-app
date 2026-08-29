@@ -12,10 +12,18 @@ const KEY_STORAGE = "stylist-admin-key";
 
 export default function Home() {
   const [data, setData] = useState(null);
-  // Always-current mirror of `data`, for the rare async task (backfillHashes)
-  // that starts from a snapshot, does real work in the background, and needs
-  // to read whatever's actually in state - not what was there when it
-  // started - right before it writes back. See backfillHashes in shared.js.
+  // Always-current mirror of `data`, for any async task (backfillHashes,
+  // save() - see its own comment below) that needs to read whatever's
+  // actually in state right before it writes back, not a stale snapshot.
+  //
+  // Every setData() call site below also assigns dataRef.current directly,
+  // synchronously, in the same statement - this effect is a backstop, not
+  // the primary sync. It runs too late for one real case: a tab's own
+  // mount effect (a migration, say) can call save() before this effect has
+  // fired even once for the newly-loaded data, because child mount effects
+  // run before their parent's - dataRef.current would still be null from
+  // its initial value. Found 29 Aug via a season-rename migration crashing
+  // on first load with real stale data to migrate.
   const dataRef = useRef(data);
   useEffect(() => {
     dataRef.current = data;
@@ -59,12 +67,15 @@ export default function Home() {
         headers: { "x-admin-key": key || "" },
       });
       if (res.status === 401) {
+        dataRef.current = null;
         setData(null);
         setLocked(true);
         return;
       }
       if (!res.ok) throw new Error();
-      setData(await res.json());
+      const loaded = await res.json();
+      dataRef.current = loaded;
+      setData(loaded);
       setLocked(false);
     } catch {
       setLoadErr("Couldn't load data. Refresh to try again.");
@@ -172,10 +183,19 @@ export default function Home() {
   // the exact same loop shape already existed in PhotoButton's multi-file
   // picker, so this had been quietly dropping photos from any multi-select
   // upload since it shipped.
+  //
+  // Every setData() call below writes dataRef.current in the same line,
+  // plainly, not via the mirroring effect up top - a tab's own mount effect
+  // (a data migration, say) can call save() before that effect has run even
+  // once for freshly-loaded data, since child mount effects fire before
+  // their parent's. Relying on the effect here meant dataRef.current was
+  // still null the first time real stale data existed to migrate - found
+  // the same day as the bug above, by the fix for it.
   async function save(type, next) {
     const prev = dataRef.current[type];
     const computed = typeof next === "function" ? next(prev) : next;
-    setData((d) => ({ ...d, [type]: computed }));
+    dataRef.current = { ...dataRef.current, [type]: computed };
+    setData(dataRef.current);
     let res;
     try {
       res = await fetch("/api/save", {
@@ -189,18 +209,21 @@ export default function Home() {
     } catch {
       // Offline / connection dropped: roll back so the screen never shows
       // state the database doesn't have.
-      setData((d) => ({ ...d, [type]: prev }));
+      dataRef.current = { ...dataRef.current, [type]: prev };
+      setData(dataRef.current);
       flash("No connection - change not saved");
       return false;
     }
     if (res.status === 401) {
-      setData((d) => ({ ...d, [type]: prev }));
+      dataRef.current = { ...dataRef.current, [type]: prev };
+      setData(dataRef.current);
       setShowLogin(true);
       return false;
     }
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      setData((d) => ({ ...d, [type]: prev }));
+      dataRef.current = { ...dataRef.current, [type]: prev };
+      setData(dataRef.current);
       flash(j.error || "Save failed - try again");
       return false;
     }
@@ -310,7 +333,7 @@ export default function Home() {
           ? t.season
           : SEASONS.includes(inspoItem.season)
           ? inspoItem.season
-          : "All year",
+          : "All seasons",
         formality: FORMALITY.includes(t.formality) ? t.formality : "Casual",
         tags: [],
         status: "wanted",

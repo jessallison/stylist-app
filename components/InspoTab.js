@@ -62,13 +62,28 @@ export default function InspoTab({
   const [urlBusy, setUrlBusy] = useState(false);
   const [urlProgress, setUrlProgress] = useState(null); // {done, total} while bulk-adding
 
-  // One-time backfill so items added before duplicate detection existed get
-  // a hash too, and show up in the duplicates panel like anything new.
-  const backfillRan = useRef(false);
+  // Mount-time fixups - hash backfill, then the season-rename migration -
+  // run sequentially in ONE effect rather than as two independent ones. See
+  // the matching comment in WardrobeTab.js: two effects independently
+  // calling save("inspo", ...) off their own stale closure snapshots can
+  // race, and whichever's fetch finishes last silently overwrites the
+  // other's fix (save() replaces the whole array, it doesn't merge).
+  // Awaiting each step here removes that race.
+  const migrationRan = useRef(false);
   useEffect(() => {
-    if (backfillRan.current) return;
-    backfillRan.current = true;
-    backfillHashes("inspo", inspo, setData, adminKey, dataRef);
+    if (migrationRan.current) return;
+    migrationRan.current = true;
+    (async () => {
+      await backfillHashes("inspo", inspo, setData, adminKey, dataRef);
+      const current = dataRef.current?.inspo || inspo;
+      if (!current.some((i) => i.season === "All year")) return;
+      await save(
+        "inspo",
+        current.map((i) =>
+          i.season === "All year" ? { ...i, season: "All seasons" } : i
+        )
+      );
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
