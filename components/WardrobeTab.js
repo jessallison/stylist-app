@@ -77,6 +77,11 @@ const EMPTY_FORM = {
   // flag set at add time, not an outfit combination.
   heavyRotation: false,
   notes: "",
+  // Hard "never suggest these together" rule, set directly on the item -
+  // structural incompatibilities (two jumpers, redundant layering) rather
+  // than a taste call the AI could plausibly learn from feedback over time.
+  // Kept in sync both ways at save time - see submit() below.
+  excludeWith: [],
 };
 
 export default function WardrobeTab({
@@ -108,6 +113,7 @@ export default function WardrobeTab({
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null); // id, "new", or null
   const [form, setForm] = useState(EMPTY_FORM);
+  const [excludeSearch, setExcludeSearch] = useState(""); // pending search text for "Doesn't pair with"
   const [newTag, setNewTag] = useState(""); // pending text for "add a new style tag"
   const [photo, setPhoto] = useState(null); // pending data URL for new/replaced photo
   const [tagging, setTagging] = useState(false);
@@ -197,6 +203,7 @@ export default function WardrobeTab({
     if (!requireUnlock()) return;
     setForm(EMPTY_FORM);
     setNewTag("");
+    setExcludeSearch("");
     setPhoto(rawDataUrl);
     setEditingId("new");
     // Hash the untouched photo, before background removal can change its
@@ -261,8 +268,10 @@ export default function WardrobeTab({
       needsStyling: !!item.needsStyling,
       heavyRotation: !!item.heavyRotation,
       notes: item.notes || "",
+      excludeWith: item.excludeWith || [],
     });
     setNewTag("");
+    setExcludeSearch("");
     setPhoto(null);
     setPhotoHash(null);
     setDupMatch(null);
@@ -306,11 +315,27 @@ export default function WardrobeTab({
       heavyRotation: form.heavyRotation,
       notes: form.notes.trim(),
       addedAt: original?.addedAt || Date.now(),
+      excludeWith: form.excludeWith,
     };
-    const ok = await save(
-      "wardrobe",
-      isNew ? [...wardrobe, item] : wardrobe.map((w) => (w.id === id ? item : w))
-    );
+    const withItem = isNew
+      ? [...wardrobe, item]
+      : wardrobe.map((w) => (w.id === id ? item : w));
+    // "Doesn't pair with" is symmetric - if this item now excludes another,
+    // that other item needs this one added to its own list too (and removed
+    // if it was dropped here), whichever side it was actually edited from.
+    const nextWardrobe = withItem.map((w) => {
+      if (w.id === id) return w;
+      const should = item.excludeWith.includes(w.id);
+      const does = (w.excludeWith || []).includes(id);
+      if (should === does) return w;
+      return {
+        ...w,
+        excludeWith: should
+          ? [...(w.excludeWith || []), id]
+          : (w.excludeWith || []).filter((x) => x !== id),
+      };
+    });
+    const ok = await save("wardrobe", nextWardrobe);
     if (!ok) {
       // Save failed: clean up the just-uploaded photo so nothing orphans,
       // and leave the form open so the entry isn't lost.
@@ -359,7 +384,15 @@ export default function WardrobeTab({
     if (!item || !confirm(`Delete "${item.name}"?`)) return;
     const ok = await save(
       "wardrobe",
-      wardrobe.filter((w) => w.id !== editingId)
+      wardrobe
+        .filter((w) => w.id !== editingId)
+        // Clear the deleted item out of anything that excluded it, so the
+        // list doesn't quietly carry a dangling id.
+        .map((w) =>
+          (w.excludeWith || []).includes(editingId)
+            ? { ...w, excludeWith: w.excludeWith.filter((x) => x !== editingId) }
+            : w
+        )
     );
     if (ok) {
       if (item.photoId) deleteImage(adminKey, item.photoId);
@@ -659,6 +692,70 @@ export default function WardrobeTab({
               Add
             </button>
           </div>
+        </div>
+        <div>
+          <label>Doesn&rsquo;t pair with</label>
+          <div className="section-sub" style={{ marginTop: -2, marginBottom: 6 }}>
+            Ruled out at the outfit-building stage, always - not a taste call the
+            AI could learn its way past, a hard no.
+          </div>
+          {form.excludeWith.length > 0 && (
+            <div className="chip-pick" style={{ marginBottom: 8 }}>
+              {form.excludeWith.map((exId) => (
+                <button
+                  type="button"
+                  key={exId}
+                  className="chip on"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      excludeWith: form.excludeWith.filter((x) => x !== exId),
+                    })
+                  }
+                  title="Remove"
+                >
+                  {wardrobe.find((w) => w.id === exId)?.name || "Removed item"} ✕
+                </button>
+              ))}
+            </div>
+          )}
+          <input
+            type="text"
+            placeholder="Search wardrobe to add…"
+            value={excludeSearch}
+            onChange={(e) => setExcludeSearch(e.target.value)}
+          />
+          {excludeSearch.trim() && (
+            <div className="chip-pick" style={{ marginTop: 8 }}>
+              {wardrobe
+                .filter(
+                  (w) =>
+                    w.id !== editingId &&
+                    !form.excludeWith.includes(w.id) &&
+                    norm(w.name).includes(norm(excludeSearch))
+                )
+                .slice(0, 8)
+                .map((w) => (
+                  <button
+                    type="button"
+                    key={w.id}
+                    className="chip"
+                    onClick={() => {
+                      setForm({ ...form, excludeWith: [...form.excludeWith, w.id] });
+                      setExcludeSearch("");
+                    }}
+                  >
+                    {w.name}
+                  </button>
+                ))}
+              {wardrobe.filter(
+                (w) =>
+                  w.id !== editingId &&
+                  !form.excludeWith.includes(w.id) &&
+                  norm(w.name).includes(norm(excludeSearch))
+              ).length === 0 && <span className="count">No match</span>}
+            </div>
+          )}
         </div>
         {form.status === "owned" && (
           <div className="flag-row">

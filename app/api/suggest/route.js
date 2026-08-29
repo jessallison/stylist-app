@@ -136,6 +136,25 @@ export async function POST(request) {
   const avoidLines = avoidPairs.map(([a, b]) => `- ${nameOf(a)} + ${nameOf(b)}`);
   const lovedLines = lovedPairs.map(([a, b]) => `- ${nameOf(a)} + ${nameOf(b)}`);
 
+  // Hard "doesn't pair with" rules, set directly on wardrobe items (Wardrobe
+  // tab item form) - unlike avoidPairs above, these aren't a taste signal
+  // mined from feedback and softly steered around, they're a structural
+  // incompatibility (two jumpers, redundant layering) the person has
+  // declared outright. Enforced twice: told to the model here so it doesn't
+  // waste an outfit slot on one, then hard-filtered out below regardless of
+  // what comes back - the model instruction is the efficiency layer, the
+  // filter is the actual guarantee.
+  const hardExcludePairs = new Set();
+  for (const w of wardrobe) {
+    for (const exId of w.excludeWith || []) {
+      hardExcludePairs.add([w.id, exId].sort().join("|"));
+    }
+  }
+  const hardExcludeLines = [...hardExcludePairs].map((key) => {
+    const [a, b] = key.split("|");
+    return `- ${nameOf(a)} + ${nameOf(b)}`;
+  });
+
   if (pool.length < 2) {
     return Response.json(
       { error: "Not enough owned items in the wardrobe yet - add a few more first." },
@@ -215,6 +234,7 @@ RULES:
 - Where an outfit follows a CONFIRMED REGULAR, say which in "formula".
 - Gaps: if a look genuinely needs something they don't own, check the WANTED list first - if a wanted item fits, reference it by id ("you've already got your eye on this") instead of a generic suggestion. Only note real gaps, not nice-to-haves.
 - Voice: warm, specific, stylist-to-friend. British English. No filler.
+${hardExcludeLines.length ? `- These pairs NEVER go in the same outfit, no exceptions - not a preference, a hard incompatibility:\n${hardExcludeLines.join("\n")}` : ""}
 ${avoidLines.length ? `- They've said no before to these specific pairings - avoid combining them in the same outfit unless there's genuinely no other way to build a good look:\n${avoidLines.join("\n")}` : ""}
 ${lovedLines.length ? `- They've responded well to these pairings before - it's fine to lean into the spirit of them where it genuinely fits, not force them in:\n${lovedLines.join("\n")}` : ""}
 
@@ -290,7 +310,14 @@ ${flowText}`;
       }))
       .filter(
         (o) =>
-          o.item_ids.length >= 2 && (!anchor || o.item_ids.includes(anchor.id))
+          o.item_ids.length >= 2 &&
+          (!anchor || o.item_ids.includes(anchor.id)) &&
+          // The actual guarantee behind hardExcludeLines above - dropped
+          // here even if the model ignored the instruction.
+          ![...hardExcludePairs].some((key) => {
+            const [a, b] = key.split("|");
+            return o.item_ids.includes(a) && o.item_ids.includes(b);
+          })
       );
 
     if (!outfits.length) {
