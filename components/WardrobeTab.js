@@ -709,8 +709,7 @@ export default function WardrobeTab({
         <div>
           <label>Doesn&rsquo;t pair with</label>
           <div className="section-sub" style={{ marginTop: -2, marginBottom: 6 }}>
-            Ruled out at the outfit-building stage, always - not a taste call the
-            AI could learn its way past, a hard no.
+            A hard no, so they&rsquo;ve never suggested in outfits together.
           </div>
           {form.excludeWith.length > 0 && (
             <div className="chip-pick" style={{ marginBottom: 8 }}>
