@@ -555,6 +555,7 @@ export default function Home() {
         </div>
         <div className="f-side">
           <div className="f-links-h">Quick links</div>
+          <a href="/faq">FAQ &amp; how to get your own</a>
           <a href="https://producingparadise.com/contact" target="_blank" rel="noreferrer">
             Contact
           </a>
@@ -639,6 +640,11 @@ function LoginModal({ onClose, onSuccess, noClose = false, title = "Unlock" }) {
           <button className="btn" type="submit" disabled={busy}>
             {busy ? "Checking…" : "Unlock"}
           </button>
+          {noClose && (
+            <a className="gate-faq-link" href="/faq">
+              What is this? · FAQ
+            </a>
+          )}
           {!noClose && (
             <button className="btn ghost" type="button" onClick={onClose}>
               Cancel

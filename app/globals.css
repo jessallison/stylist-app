@@ -1686,6 +1686,86 @@ header.top {
   font-size: 1.4rem;
 }
 
+.gate-faq-link {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+/* --- FAQ page (app/faq) - public, outside the auth gate --------------------- */
+
+.faq-top {
+  justify-content: space-between;
+}
+
+.faq-back {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.faq-intro {
+  margin: 22px 0 6px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  max-width: 640px;
+}
+
+.faq-layers {
+  max-width: 640px;
+}
+
+.faq-layer-row {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.faq-layer-row:last-child {
+  border-bottom: none;
+}
+
+.faq-layer-label {
+  flex: 0 0 170px;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.faq-layer-value {
+  flex: 1 1 260px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.faq-item {
+  max-width: 640px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.faq-item:last-of-type {
+  border-bottom: none;
+}
+
+.faq-q {
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 6px;
+}
+
+.faq-a {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+/* .faq-footer reuses .site-footer as-is - just one child (.f-powered),
+   which naturally lands in the grid's first column. */
+
 .err {
   color: var(--alert);
   font-size: 0.84rem;
