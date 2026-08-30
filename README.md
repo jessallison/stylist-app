@@ -1,4 +1,4 @@
-# Jess' Stylist
+# Personal Stylist App
 
 A personal styling and inspiration tool - a separate layer over the wardrobe,
 not a replacement for Stylebook (which stays the inventory and wear log).
