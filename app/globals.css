@@ -133,7 +133,7 @@ a {
 .btn,
 .chip,
 .lock-btn,
-.top-nav button,
+.top-nav button:not(.theme-btn),
 .sort-wrap label,
 .form label,
 .oi-name,
@@ -197,7 +197,7 @@ header.top {
   flex-wrap: wrap;
 }
 
-.top-nav button {
+.top-nav button:not(.theme-btn) {
   padding: 8px 14px;
   font-size: 0.68rem;
   font-weight: 500;
@@ -219,14 +219,37 @@ header.top {
   margin-left: 6px;
 }
 
-.lock-btn,
-.theme-btn {
+.lock-btn {
   font-size: 0.62rem;
   font-weight: 500;
   color: var(--muted);
   padding: 7px 12px;
   border: 1px solid var(--line);
   background: transparent;
+}
+
+/* Icon toggle, not a text label - same square-icon-button language as
+   .dupes-btn/.tile-toggle button, so it doesn't inherit the uppercase
+   tracked-label treatment above. */
+.theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: transparent;
+}
+
+.theme-btn:hover {
+  color: var(--ink);
+}
+
+.theme-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .lock-btn.unlocked {

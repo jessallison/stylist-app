@@ -477,7 +477,27 @@ export default function Home() {
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             title={theme === "dark" ? "Light mode" : "Dark mode"}
           >
-            {theme === "dark" ? "Light" : "Dark"}
+            {theme === "dark" ? (
+              <svg viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="3.33" stroke="currentColor" />
+                <line x1="8" y1="0.67" x2="8" y2="2" stroke="currentColor" strokeLinecap="round" />
+                <line x1="8" y1="14" x2="8" y2="15.33" stroke="currentColor" strokeLinecap="round" />
+                <line x1="2.81" y1="2.81" x2="3.76" y2="3.76" stroke="currentColor" strokeLinecap="round" />
+                <line x1="12.24" y1="12.24" x2="13.19" y2="13.19" stroke="currentColor" strokeLinecap="round" />
+                <line x1="0.67" y1="8" x2="2" y2="8" stroke="currentColor" strokeLinecap="round" />
+                <line x1="14" y1="8" x2="15.33" y2="8" stroke="currentColor" strokeLinecap="round" />
+                <line x1="2.81" y1="13.19" x2="3.76" y2="12.24" stroke="currentColor" strokeLinecap="round" />
+                <line x1="12.24" y1="3.76" x2="13.19" y2="2.81" stroke="currentColor" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M14 8.53A6 6 0 1 1 7.47 2 4.67 4.67 0 0 0 14 8.53z"
+                  stroke="currentColor"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
           </button>
           <button
             className={`lock-btn ${unlocked ? "unlocked" : ""}`}
