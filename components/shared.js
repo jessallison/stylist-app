@@ -47,11 +47,48 @@ async function convertHeicToJpeg(file) {
 // server's size cap. Returns a data URL. HEIC/HEIF files are converted to
 // JPEG first (see convertHeicToJpeg above), then flow through the same
 // resize pipeline as everything else.
+// libheif-wasm (the decoder behind convertHeicToJpeg) occasionally decodes a
+// HEIC photo as solid black instead of erroring - seen in practice with
+// HDR/gain-map shots and portrait-mode depth photos, where the decoder can
+// grab the wrong embedded image track. It's a known category of bug in
+// libheif-based decoders generally, not something wrong with our own
+// canvas code (which already white-fills before drawing - see below). Since
+// the library gives no signal that this happened, the only way to catch it
+// is to look at what it actually produced: a real photo, even a dark one,
+// has *some* variance across it, where a failed decode is flat, uniform
+// black. Sampling a grid of pixels and checking both the average brightness
+// and how much it varies tells the two apart without false-positiving on a
+// genuinely black item shot on a black background (which has visible edges
+// and highlights, so isn't uniform).
+function looksLikeFailedHeicDecode(ctx, width, height) {
+  const cols = 8;
+  const rows = 8;
+  let sum = 0;
+  let sumSq = 0;
+  let n = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = Math.min(width - 1, Math.floor(((c + 0.5) / cols) * width));
+      const y = Math.min(height - 1, Math.floor(((r + 0.5) / rows) * height));
+      const [red, green, blue] = ctx.getImageData(x, y, 1, 1).data;
+      const luma = (red + green + blue) / 3;
+      sum += luma;
+      sumSq += luma * luma;
+      n++;
+    }
+  }
+  const mean = sum / n;
+  const variance = sumSq / n - mean * mean;
+  return mean < 6 && variance < 9;
+}
+
 export function fileToDataUrl(file, maxDim = 900, quality = 0.8) {
   return new Promise((resolve, reject) => {
     (async () => {
       let source = file;
+      let wasHeic = false;
       if (looksLikeHeic(file)) {
+        wasHeic = true;
         try {
           source = await convertHeicToJpeg(file);
         } catch (e) {
@@ -93,6 +130,17 @@ export function fileToDataUrl(file, maxDim = 900, quality = 0.8) {
               ctx.fillStyle = "#fff";
               ctx.fillRect(0, 0, canvas.width, canvas.height);
               ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              if (
+                wasHeic &&
+                looksLikeFailedHeicDecode(ctx, canvas.width, canvas.height)
+              ) {
+                reject(
+                  new Error(
+                    `"${file.name || "That HEIC photo"}" converted to a solid black image - this is a known HEIC decoder issue, usually with HDR or Portrait-mode shots. Try turning on Settings > Camera > Formats > "Most Compatible" for new photos, or share this one via Messages/AirDrop first (it often flattens HDR) and upload the result.`
+                  )
+                );
+                return;
+              }
               const out = canvas.toDataURL("image/jpeg", q);
               // Stay under the server's 900KB cap with headroom.
               if (out.length < 650_000) return resolve(out);
