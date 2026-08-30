@@ -197,7 +197,7 @@ header.top {
   flex-wrap: wrap;
 }
 
-.top-nav button:not(.theme-btn) {
+.top-nav button:not(.theme-btn):not(.lock-btn) {
   padding: 8px 14px;
   font-size: 0.68rem;
   font-weight: 500;
