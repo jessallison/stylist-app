@@ -657,7 +657,7 @@ export default function InspoTab({
                     below, not width-constrained) - at compact-tile width
                     that wrapped onto two lines with the underline breaking
                     mid-word, which read as broken rather than just narrow. */}
-                + Wardrobe
+                + I want this
               </button>
             ) : (
               <button
