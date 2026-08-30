@@ -3,3 +3,6 @@ node_modules/
 .env*.local
 .env
 .DS_Store
+
+# Local-only working notes for Claude - never pushed to the (public) repo.
+CLAUDE.md
