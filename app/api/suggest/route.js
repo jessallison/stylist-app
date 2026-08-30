@@ -291,13 +291,12 @@ export async function POST(request) {
   // towards any of these either way. Needed by both the AI path (post-call
   // validation) and the no-AI fallback below, so it's computed once here.
   const categoryOf = new Map(wardrobe.map((w) => [w.id, w.category]));
-  // Categories a real outfit only ever wears one of at a time. Hats,
-  // gloves and earrings belong here too in spirit, but the category list
-  // doesn't separate them yet - Hats/Gloves fall under "Other" alongside
-  // unrelated odds and ends, and earrings share "Jewellery" with
-  // bracelets/necklaces, which SHOULD be allowed to stack. Flagged to
-  // Jess rather than guessed at with name-matching.
-  const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts"];
+  // Categories a real outfit only ever wears one of at a time. Earrings
+  // belong here too in spirit, but they still share the "Jewellery"
+  // category with bracelets/necklaces, which SHOULD be allowed to stack -
+  // splitting that out needs its own subfield, not just a category, so
+  // it's parked in IDEAS.md rather than guessed at with name-matching.
+  const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts", "Hats", "Gloves"];
 
   // No ANTHROPIC_API_KEY configured - a fresh deployment before someone's
   // added a key, or one that never plans to. Flow A needs actual image

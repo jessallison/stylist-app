@@ -72,9 +72,7 @@ export default function FaqPage() {
         A private wardrobe app I built with Claude instead of buying new clothes: it
         catalogues everything I own, tags it automatically, and only ever suggests
         outfits from what's already in the closet.{" "}
-        {/* TODO(Jess): swap in the live article URL once it's published - couldn't
-            find it live on producingparadise.com yet, so this is a placeholder. */}
-        <a href="https://producingparadise.com/articles/tools-and-apps/i-just-want-to-look-cool-again">
+        <a href="https://www.producingparadise.com/articles/i-just-want-to-look-cool-again-how-i-built-an-ai-stylist-instead-of-buying-new-clothes">
           Read the full story
         </a>{" "}
         of why I built it and what it's taught me about my own wardrobe.

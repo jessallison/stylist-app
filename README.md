@@ -44,8 +44,11 @@ npm run dev
 ```
 
 Without env vars, data lives in memory (resets on restart) and editing is
-unlocked. AI features need `ANTHROPIC_API_KEY` even locally - put it in
-`.env.local` if you want tagging/suggestions in dev.
+unlocked. Photo tagging and inspo matching need `ANTHROPIC_API_KEY` even
+locally - put it in `.env.local` if you want those in dev. "Suggest outfits"
+and "Style a piece" work either way: with no key they fall back to a random
+shuffle from the wardrobe, still honouring the hard rules (see Data model
+notes below).
 
 ## Deploy (same recipe-app flow)
 
@@ -69,10 +72,11 @@ aren't included in that JSON).
 - Wardrobe item: photo + category / colours / season / formality (AI-suggested
   on entry, approved by hand) + `status` (`owned` / `wanted`), `fitStatus`
   (`current` / `not_current` - kept but excluded from suggestions), and a
-  `needsStyling` flag ("how" pieces). Photos are run through remove.bg on
-  entry (new items and product-pin "wanted" adds) and composited onto white -
-  best-effort, falls back to the original photo silently on failure. Inspo
-  and style-profile photos are never touched.
+  `needsStyling` flag ("how" pieces). Photos accept HEIC (converted client-side
+  before upload) and are run through remove.bg on entry (new items and
+  product-pin "wanted" adds), composited onto white - best-effort, falls back
+  to the original photo silently on failure. Inspo and style-profile photos
+  are never touched.
 - `wanted` items are never assembled into outfits - they only surface in gap
   notes ("you've already got your eye on…").
 - Inspo items are auto-classified on ingest: outfit photo (primary Flow A
@@ -83,10 +87,12 @@ aren't included in that JSON).
   Weather / Warm Weather / Fancy folders, same groupings.
 - Saved looks: any suggestion can be kept ("Save this look") - stored as item
   references plus the stylist's reasoning, listed on the Style me tab.
+- Hard suggestion rules, enforced after generation regardless of what the
+  model returns (or, with no API key, applied directly in the random-shuffle
+  fallback): never two pairs of shoes, bags, sunglasses or belts in one
+  outfit, and any per-item `excludeWith` pairs set on the wardrobe form
+  ("doesn't pair with") are dropped if both sides show up together.
 
-## Phase two (scoped, not built)
-
-Pinterest API import (boards → occasion tags, "This Is It" as baseline
-signal), the wore-it/loved-it feedback loop, and the proactive closet audit.
-Depop/Vinted have no public API for personal saves - screenshots stay the
-mechanism indefinitely.
+A public, unauthenticated `/faq` page (linked from the login screen and
+footer) covers what the app is, how it was built and how to get your own copy
+- worth a read before forking.
