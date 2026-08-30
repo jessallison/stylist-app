@@ -84,6 +84,14 @@ export default function StyleTab({
   const owned = wardrobe.filter((w) => w.status === "owned");
   const anchorable = owned.filter((w) => w.fitStatus !== "not_current");
   const matchableInspo = data.inspo.filter((i) => i.type !== "product");
+  // Dropdown-only sorts (A-Z by what's actually shown in the option) - the
+  // underlying anchorable/matchableInspo arrays stay in their original order
+  // for everything else that reads them (e.g. the manual builder's grid).
+  const anchorableAZ = [...anchorable].sort((a, b) => a.name.localeCompare(b.name));
+  const inspoLabel = (i) => [i.notes || "Inspo", i.occasion, i.season].filter(Boolean).join(" · ");
+  const matchableInspoAZ = [...matchableInspo].sort((a, b) =>
+    inspoLabel(a).localeCompare(inspoLabel(b))
+  );
 
   async function run(overrides = {}) {
     if (!unlocked) {
@@ -332,9 +340,9 @@ export default function StyleTab({
           <div className="row">
             <select value={inspoId} onChange={(e) => { setInspoId(e.target.value); setImage(null); }}>
               <option value="">Pick from the inspo library…</option>
-              {matchableInspo.map((i) => (
+              {matchableInspoAZ.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {[i.notes || "Inspo", i.occasion, i.season].filter(Boolean).join(" · ").slice(0, 70)}
+                  {inspoLabel(i).slice(0, 70)}
                 </option>
               ))}
             </select>
@@ -366,7 +374,7 @@ export default function StyleTab({
           <div className="row">
             <select value={anchorId} onChange={(e) => { setAnchorId(e.target.value); setImage(null); }}>
               <option value="">Pick a piece I own…</option>
-              {anchorable.map((w) => (
+              {anchorableAZ.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}
                   {w.needsStyling ? " · needs styling" : ""}
@@ -637,6 +645,13 @@ function ManualBuilder({
       (!cat || w.category === cat) &&
       (!q || norm(w.name).includes(q) || norm(w.brand).includes(q))
   );
+  // One-tap category filter, same pattern as Wardrobe's (see categoryCounts
+  // in WardrobeTab.js) - only categories actually present, counted against
+  // the whole `owned` pool passed in, not narrowed by the search box.
+  const categoryCounts = CATEGORIES.map((c) => [
+    c,
+    owned.filter((w) => w.category === c).length,
+  ]).filter(([, n]) => n > 0);
 
   return (
     <div>
@@ -677,18 +692,33 @@ function ManualBuilder({
       )}
 
       <div className="flow-config">
+        {categoryCounts.length > 1 && (
+          <div className="chip-pick" style={{ marginBottom: 12 }}>
+            <button
+              type="button"
+              className={`chip ${!cat ? "sel" : ""}`}
+              onClick={() => onCat("")}
+            >
+              All
+            </button>
+            {categoryCounts.map(([c, n]) => (
+              <button
+                type="button"
+                key={c}
+                className={`chip ${cat === c ? "sel" : ""}`}
+                onClick={() => onCat(cat === c ? "" : c)}
+              >
+                {c} ({n})
+              </button>
+            ))}
+          </div>
+        )}
         <div className="row" style={{ flexWrap: "wrap" }}>
           <input
             placeholder="Search wardrobe…"
             value={search}
             onChange={(e) => onSearch(e.target.value)}
           />
-          <select value={cat} onChange={(e) => onCat(e.target.value)}>
-            <option value="">Any category</option>
-            {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
         </div>
       </div>
 
