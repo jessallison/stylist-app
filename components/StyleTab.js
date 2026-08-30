@@ -456,7 +456,16 @@ export default function StyleTab({
               <option key={c}>{c}</option>
             ))}
           </select>
-          <button className="btn" onClick={() => run()} disabled={busy || !data.ai}>
+          {/* Only Flow A (matching an inspo image) genuinely needs the AI -
+              B and C fall back to a random shuffle server-side (see the
+              no-ANTHROPIC_API_KEY branch in app/api/suggest/route.js), so
+              gating this button on data.ai for every flow silently made
+              that fallback unreachable from here. */}
+          <button
+            className="btn"
+            onClick={() => run()}
+            disabled={busy || (flow === "A" && !data.ai)}
+          >
             {busy ? "Styling…" : "Style me"}
           </button>
           <button
