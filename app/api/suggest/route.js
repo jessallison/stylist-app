@@ -58,15 +58,139 @@ CONFIRMED REGULARS - proven formulas. Reach for these before reasoning from scra
 ${s.regulars.map((r) => `- ${r}`).join("\n")}`;
 }
 
+// No-AI fallback, used when ANTHROPIC_API_KEY isn't configured (a fresh
+// deployment before someone's added a key, or one that never plans to).
+// Flows B and C still work here - "suggest from filters" and "style a
+// piece" are both really just "pick something valid", which needs no
+// reasoning. Flow A (match an inspo image) genuinely needs vision, so it
+// stays a hard error - see the caller.
+//
+// This can't check the three words or find real gaps (both need
+// judgement), so it doesn't pretend to: titles and notes say plainly that
+// this is a random pick, not a styled one. What it DOES still guarantee is
+// every structural rule below - one-per-outfit categories, hard excludes,
+// season/occasion/colour filters - the same rules the AI path enforces.
+const OCCASION_TO_FORMALITY = {
+  Everyday: ["Casual"],
+  Work: ["Smart casual", "Casual"],
+  "A little bit fancy": ["Dressy", "Smart casual"],
+  "Going out": ["Fancy", "Dressy"],
+};
+
+function shuffled(arr) {
+  return arr
+    .map((v) => [Math.random(), v])
+    .sort((a, b) => a[0] - b[0])
+    .map(([, v]) => v);
+}
+
+function buildRandomOutfits({ pool, anchor, filters, hardExcludePairs, count = 3 }) {
+  const seasonOk = (w) =>
+    !filters.season || w.season === filters.season || w.season === "All seasons";
+  const occasionOk = (w) => {
+    if (!filters.occasion) return true;
+    const allowed = OCCASION_TO_FORMALITY[filters.occasion];
+    return !allowed || allowed.includes(w.formality);
+  };
+  const eligible = pool.filter((w) => seasonOk(w) && occasionOk(w));
+  const byId = new Map(eligible.map((w) => [w.id, w]));
+  if (anchor) byId.set(anchor.id, anchor);
+  const byCategory = {};
+  for (const w of eligible) (byCategory[w.category] ||= []).push(w);
+
+  function pairsOk(ids) {
+    return !ids.some((a) =>
+      ids.some((b) => a !== b && hardExcludePairs.has([a, b].sort().join("|")))
+    );
+  }
+
+  function oneAttempt() {
+    const chosen = [];
+    const usedCats = new Set();
+    if (anchor) {
+      chosen.push(anchor.id);
+      usedCats.add(anchor.category);
+    }
+
+    const hasBase = () =>
+      ["Dresses", "Tops", "Bottoms", "Skirts", "Knitwear & jumpers"].some((c) => usedCats.has(c));
+    const wantsDress =
+      !hasBase() && Math.random() < 0.35 && byCategory["Dresses"]?.length > 0;
+    if (wantsDress) {
+      const d = shuffled(byCategory["Dresses"])[0];
+      chosen.push(d.id);
+      usedCats.add("Dresses");
+    } else if (!hasBase()) {
+      const topPool = shuffled([...(byCategory["Tops"] || []), ...(byCategory["Knitwear & jumpers"] || [])]);
+      if (topPool[0]) {
+        chosen.push(topPool[0].id);
+        usedCats.add(topPool[0].category);
+      }
+      const bottomPool = shuffled([...(byCategory["Bottoms"] || []), ...(byCategory["Skirts"] || [])]);
+      if (bottomPool[0]) {
+        chosen.push(bottomPool[0].id);
+        usedCats.add(bottomPool[0].category);
+      }
+    }
+
+    // Outerwear - lean in for cold weather, otherwise a coin flip.
+    if (!usedCats.has("Outerwear") && byCategory["Outerwear"]?.length) {
+      const wantOuter = filters.season === "Cold weather" ? Math.random() < 0.7 : Math.random() < 0.3;
+      if (wantOuter) {
+        chosen.push(shuffled(byCategory["Outerwear"])[0].id);
+        usedCats.add("Outerwear");
+      }
+    }
+    // Shoes - almost always, when there's a pair available.
+    if (!usedCats.has("Shoes") && byCategory["Shoes"]?.length && Math.random() < 0.9) {
+      chosen.push(shuffled(byCategory["Shoes"])[0].id);
+      usedCats.add("Shoes");
+    }
+    // One-per-outfit accessories, each a coin flip.
+    for (const cat of ["Bags", "Sunglasses", "Belts"]) {
+      if (!usedCats.has(cat) && byCategory[cat]?.length && Math.random() < 0.45) {
+        chosen.push(shuffled(byCategory[cat])[0].id);
+        usedCats.add(cat);
+      }
+    }
+    // Jewellery and scarves can stack - no one-per-outfit limit on these.
+    for (const cat of ["Jewellery", "Scarves & shawls"]) {
+      if (byCategory[cat]?.length && Math.random() < 0.5) {
+        chosen.push(shuffled(byCategory[cat])[0].id);
+      }
+    }
+    return [...new Set(chosen)];
+  }
+
+  const results = [];
+  const seen = new Set();
+  let attempts = 0;
+  let n = 0;
+  while (results.length < count && attempts < 60) {
+    attempts++;
+    const ids = oneAttempt();
+    if (ids.length < 2) continue;
+    if (!pairsOk(ids)) continue;
+    if (filters.colour && !ids.some((id) => (byId.get(id)?.colours || []).includes(filters.colour))) continue;
+    const key = [...ids].sort().join(",");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    n++;
+    results.push({
+      title: `Wardrobe shuffle ${n}`,
+      item_ids: ids,
+      formula: "",
+      why: "Randomly assembled from what's owned and the filters - no styling reasoning behind this one.",
+      styling_notes: "",
+      gaps: [],
+    });
+  }
+  return results;
+}
+
 export async function POST(request) {
   if (!checkAuth(request)) {
     return Response.json({ error: "Wrong password" }, { status: 401 });
-  }
-  if (!hasClaude()) {
-    return Response.json(
-      { error: "ANTHROPIC_API_KEY isn't set - suggestions need it." },
-      { status: 503 }
-    );
   }
 
   let body;
@@ -160,6 +284,55 @@ export async function POST(request) {
       { error: "Not enough owned items in the wardrobe yet - add a few more first." },
       { status: 400 }
     );
+  }
+
+  // Category lookup for the one-per-outfit guard below - "NEW" (an
+  // uncatalogued Flow C anchor) has no category yet, so it never counts
+  // towards any of these either way. Needed by both the AI path (post-call
+  // validation) and the no-AI fallback below, so it's computed once here.
+  const categoryOf = new Map(wardrobe.map((w) => [w.id, w.category]));
+  // Categories a real outfit only ever wears one of at a time. Hats,
+  // gloves and earrings belong here too in spirit, but the category list
+  // doesn't separate them yet - Hats/Gloves fall under "Other" alongside
+  // unrelated odds and ends, and earrings share "Jewellery" with
+  // bracelets/necklaces, which SHOULD be allowed to stack. Flagged to
+  // Jess rather than guessed at with name-matching.
+  const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts"];
+
+  // No ANTHROPIC_API_KEY configured - a fresh deployment before someone's
+  // added a key, or one that never plans to. Flow A needs actual image
+  // reasoning (matching a look's silhouette/colour logic), which has no
+  // sensible non-AI version, so it stays a clear error. Flows B and C are
+  // really just "pick something valid", which a random assembly can do -
+  // see buildRandomOutfits above.
+  if (!hasClaude()) {
+    if (flow === "A") {
+      return Response.json(
+        {
+          error:
+            "Matching an inspo image needs AI vision, which isn't configured (no ANTHROPIC_API_KEY). \"Suggest outfits\" and \"Style a piece\" still work without it, as a random shuffle.",
+        },
+        { status: 503 }
+      );
+    }
+    const randomOutfits = buildRandomOutfits({ pool, anchor, filters, hardExcludePairs, count: 3 }).filter(
+      (o) =>
+        o.item_ids.length >= 2 &&
+        ONE_PER_OUTFIT_CATEGORIES.every(
+          (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
+        )
+    );
+    if (!randomOutfits.length) {
+      return Response.json(
+        { error: "Couldn't build an outfit from what's owned and the filters - try loosening them." },
+        { status: 502 }
+      );
+    }
+    return Response.json({
+      outfits: randomOutfits,
+      overall_note:
+        "Randomly assembled, not AI-styled - no ANTHROPIC_API_KEY configured. Structural rules (no doubling up on shoes/bags/etc., hard excludes, season and occasion) are still respected; the three-words check and gap-finding aren't. Add a key to turn full suggestions back on.",
+    });
   }
 
   // Source image: an inspo library item (A), a fresh upload (A or C), or the
@@ -297,17 +470,8 @@ ${flowText}`;
       ...(flow === "C" && !anchor ? ["NEW"] : []),
     ]);
     const wantedIds = new Set(wanted.map((w) => w.id));
-    // Category lookup for the one-per-outfit guard below - "NEW" (an
-    // uncatalogued Flow C anchor) has no category yet, so it never counts
-    // towards any of these either way.
-    const categoryOf = new Map(wardrobe.map((w) => [w.id, w.category]));
-    // Categories a real outfit only ever wears one of at a time. Hats,
-    // gloves and earrings belong here too in spirit, but the category list
-    // doesn't separate them yet - Hats/Gloves fall under "Other" alongside
-    // unrelated odds and ends, and earrings share "Jewellery" with
-    // bracelets/necklaces, which SHOULD be allowed to stack. Flagged to
-    // Jess rather than guessed at with name-matching.
-    const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts"];
+    // categoryOf and ONE_PER_OUTFIT_CATEGORIES are computed once, earlier,
+    // above the no-AI fallback branch - shared by both paths.
     const outfits = (result.outfits || [])
       .map((o) => ({
         title: o.title || "Untitled look",

@@ -315,8 +315,9 @@ export default function StyleTab({
     <div>
       {!data.ai && (
         <div className="notice">
-          AI suggestions are off - <code>ANTHROPIC_API_KEY</code> isn&rsquo;t set on
-          the server yet.
+          No <code>ANTHROPIC_API_KEY</code> configured, so suggestions are a random
+          shuffle rather than styled - still respects hard rules like season and no
+          doubling up on shoes. Matching an inspo image needs the key.
         </div>
       )}
       <div className="flow-row">
