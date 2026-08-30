@@ -18,11 +18,11 @@ const LAYERS = [
 const FAQS = [
   {
     q: "What is this?",
-    a: "A private wardrobe app built with Claude. It catalogues everything I own with AI-generated tags, holds a separate inspiration board and a 'wanted' list, and only ever suggests outfits from what I already have - it never nudges me to buy something new.",
+    a: "A private wardrobe app built with Claude. Designed to catalogue everything I own, track inspiration, wanted items, and suggest outfits from what I already have.",
   },
   {
     q: "Do I need to know how to code to build something like this?",
-    a: "No. It was built entirely through plain-language conversation with Claude, including every bug fix and redesign since - no code editor involved. What helps is knowing roughly what you want; you don't need to know how to build it.",
+    a: "No. It was built entirely through plain-language conversation with Claude (yes, vibe-coded), including every bug fix and redesign. What helps is knowing roughly what you want; you don't need to know how to build it. (I do have a background in managing digital projects so that's an advantage for the speed and knowing how to explain things.)",
   },
   {
     q: "Is my data private? Can you see my wardrobe?",
@@ -30,7 +30,7 @@ const FAQS = [
   },
   {
     q: "Can I get my own?",
-    a: "Yes - ask me directly for now. Each person gets their own live site and their own database, the same way Aaron and I each run separate copies, so your wardrobe stays yours. It's a handful of setup steps on my end (roughly: new GitHub repo or fork, a Vercel project, an Upstash Redis database, an Anthropic API key), covered in the full write-up linked below if you'd rather see the actual sequence.",
+    a: "Yes! I've made the GitHub repo public so you can fork and play. You'll need accounts with GitHub, Vercel, Upstash for the Redis database, and an Anthropic API key.",
   },
   {
     q: "What does it cost to run?",
@@ -38,11 +38,11 @@ const FAQS = [
   },
   {
     q: "What happens if there's no Anthropic API key set up yet?",
-    a: "The app still works. 'Suggest outfits' and 'Style a piece' fall back to a random shuffle from your wardrobe, still honouring hard rules like season and never doubling up on shoes - it just skips the actual styling judgement. Matching an inspo image needs the AI, so that one's off until a key's added.",
+    a: "The app still works. 'Suggest outfits' and 'Style a piece' fall back to a random shuffle from your wardrobe, still honouring hard rules like season and never doubling up on shoes - it just skips the styling judgement. Matching an inspo image needs the AI, so that one's off until a key's added.",
   },
   {
     q: "Why not just use an existing wardrobe app?",
-    a: "Most wardrobe and outfit apps are built around discovery - browse more, buy more, chase what's trending. This does the opposite: it only ever works with what's already owned. It also complements Stylebook rather than replacing it - Stylebook logs what I own and wear well; this adds AI tags, style-word filters, and a way to surface what's buried at the back of a drawer.",
+    a: "Most wardrobe and outfit apps are built around discovery - browse more, buy more, chase what's trending. This works with what's already owned. In my case, I built it to complement Stylebook rather than replacing it - Stylebook logs what I own and wear well; this adds AI tags, style-word filters, and a way to surface what's buried at the back of a drawer.",
   },
 ];
 
@@ -69,13 +69,14 @@ export default function FaqPage() {
       </header>
 
       <p className="faq-intro">
-        A private wardrobe app I built with Claude instead of buying new clothes: it
-        catalogues everything I own, tags it automatically, and only ever suggests
-        outfits from what's already in the closet.{" "}
+        A private wardrobe app Jess built with Claude instead of buying new
+        clothes: it catalogues everything I own, tags automatically, and
+        suggests outfits from what's already in the closet. Read why I built
+        it in more detail{" "}
         <a href="https://www.producingparadise.com/articles/i-just-want-to-look-cool-again-how-i-built-an-ai-stylist-instead-of-buying-new-clothes">
-          Read the full story
-        </a>{" "}
-        of why I built it and what it's taught me about my own wardrobe.
+          here
+        </a>
+        .
       </p>
 
       <h2 className="section-h">How it works</h2>
