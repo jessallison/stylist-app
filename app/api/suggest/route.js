@@ -230,7 +230,7 @@ ${identityText(settings)}
 RULES:
 - item_ids may only contain ids from the OWNED WARDROBE list${anchor ? ` (plus the anchor ${anchor.id})` : ""}${flow === "C" && !anchor ? ` (plus "NEW" for the just-bought anchor)` : ""}.
 - 2 to 6 items per outfit; complete looks (shoes/outerwear when the wardrobe has suitable ones), accessories encouraged.
-- Never more than one pair of shoes in the same outfit.
+- Never more than one pair of shoes, one bag, one pair of sunglasses, or one belt in the same outfit.
 - Before returning an outfit, check it against the three words. If it doesn't honour at least two, fix it or drop it.
 - Where an outfit follows a CONFIRMED REGULAR, say which in "formula".
 - Gaps: if a look genuinely needs something they don't own, check the WANTED list first - if a wanted item fits, reference it by id ("you've already got your eye on this") instead of a generic suggestion. Only note real gaps, not nice-to-haves.
@@ -297,10 +297,17 @@ ${flowText}`;
       ...(flow === "C" && !anchor ? ["NEW"] : []),
     ]);
     const wantedIds = new Set(wanted.map((w) => w.id));
-    // Category lookup for the two-pairs-of-shoes guard below - "NEW" (an
-    // uncatalogued Flow C anchor) has no category yet, so it never counts as
-    // a second pair either way.
+    // Category lookup for the one-per-outfit guard below - "NEW" (an
+    // uncatalogued Flow C anchor) has no category yet, so it never counts
+    // towards any of these either way.
     const categoryOf = new Map(wardrobe.map((w) => [w.id, w.category]));
+    // Categories a real outfit only ever wears one of at a time. Hats,
+    // gloves and earrings belong here too in spirit, but the category list
+    // doesn't separate them yet - Hats/Gloves fall under "Other" alongside
+    // unrelated odds and ends, and earrings share "Jewellery" with
+    // bracelets/necklaces, which SHOULD be allowed to stack. Flagged to
+    // Jess rather than guessed at with name-matching.
+    const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts"];
     const outfits = (result.outfits || [])
       .map((o) => ({
         title: o.title || "Untitled look",
@@ -323,10 +330,12 @@ ${flowText}`;
             const [a, b] = key.split("|");
             return o.item_ids.includes(a) && o.item_ids.includes(b);
           }) &&
-          // Same belt-and-braces pattern for the "never two pairs of shoes"
-          // rule above - the prompt line is the efficiency layer, this is
-          // the actual guarantee.
-          o.item_ids.filter((id) => categoryOf.get(id) === "Shoes").length <= 1
+          // Same belt-and-braces pattern for the one-per-outfit rule above -
+          // the prompt line is the efficiency layer, this is the actual
+          // guarantee.
+          ONE_PER_OUTFIT_CATEGORIES.every(
+            (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
+          )
       );
 
     if (!outfits.length) {
