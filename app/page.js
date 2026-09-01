@@ -425,6 +425,17 @@ export default function Home() {
 
   if (!data) return <div className="wrap empty">Opening the wardrobe…</div>;
 
+  // Nothing catalogued anywhere yet - a brand-new instance (a friend's fresh
+  // fork, or Jess's mum's first visit) rather than an established wardrobe
+  // with just one section empty. Swaps for the welcome panel below instead
+  // of a first-unlock flag, so it needs no dismiss state and reappears on
+  // its own for any future empty instance.
+  const isFreshStart =
+    data.wardrobe.length === 0 &&
+    data.looks.length === 0 &&
+    data.inspo.length === 0 &&
+    data.styleProfile.length === 0;
+
   const tabProps = {
     data,
     save,
@@ -507,6 +518,31 @@ export default function Home() {
           </button>
         </nav>
       </header>
+
+      {unlocked && isFreshStart && (
+        <div className="welcome-panel">
+          <h2>Welcome! Here&rsquo;s how this works</h2>
+          <p>
+            <strong>Wardrobe</strong> is everything you own, all in one place -
+            start here, and add a few things by photo.
+          </p>
+          <p>
+            <strong>Style me</strong> gives you an outfit idea any time you want
+            one, from what&rsquo;s already in your wardrobe.
+          </p>
+          <p>
+            <strong>Inspo</strong> is for saving a photo of a look you love -
+            it can help build outfit ideas later.
+          </p>
+          <p>
+            <strong>Profile</strong> keeps a few outfits you&rsquo;ve actually
+            worn, just for your own reference.
+          </p>
+          <button className="btn" onClick={() => setTab("wardrobe")}>
+            Start with Wardrobe →
+          </button>
+        </div>
+      )}
 
       {/* All tabs stay mounted so filters, forms and results survive switching. */}
       <div style={{ display: tab === "style" ? undefined : "none" }}>
