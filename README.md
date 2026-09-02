@@ -1,7 +1,7 @@
 # Personal Stylist App
 
-A personal styling and inspiration tool - a separate layer over the wardrobe,
-not a replacement for Stylebook (which stays the inventory and wear log).
+A personal styling and inspiration tool, designed to help you style the
+clothes you already own, and apply inspiration you find.
 
 Given a tagged wardrobe capsule and a library of inspiration, it suggests
 outfit combinations three ways:
