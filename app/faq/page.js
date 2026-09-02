@@ -55,7 +55,7 @@ const FAQS = [
   },
   {
     q: "Why not just use an existing wardrobe app?",
-    a: "Most wardrobe and outfit apps are built around discovery - browse more, buy more, chase what's trending. This works with what's already owned. In my case, I built it to complement Stylebook rather than replacing it - Stylebook logs what I own and wear well; this adds AI tags, style-word filters, and a way to surface what's buried at the back of a drawer.",
+    a: "Most wardrobe and outfit apps are built around discovery - browse more, buy more, chase what's trending. This works with what's already owned: AI tags, style-word filters, and a way to surface what's buried at the back of a drawer.",
   },
 ];
 
