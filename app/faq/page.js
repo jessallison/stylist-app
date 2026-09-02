@@ -1,7 +1,7 @@
 // Public, unauthenticated page - no checkAuth, no /api/data call. Deliberately
 // separate from the gated app (app/page.js) so anyone can read it before
 // they've been given a password: friends deciding whether they want their
-// own copy, or Jess/Aaron linking someone to it directly.
+// own copy, or the owner linking someone to it directly.
 export const metadata = {
   title: "FAQ - Personal Stylist",
   description: "How the Personal Stylist app was built, how it works, and how to get your own.",
