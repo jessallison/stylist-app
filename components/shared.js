@@ -31,13 +31,21 @@ function looksLikeHeic(file) {
 
 // Dynamic import so the ~3MB decoder only loads for the rare HEIC upload,
 // never adding to the bundle every other photo pick pays for.
-async function convertHeicToJpeg(file) {
+// Converts to PNG, not JPEG: a HEIC cutout with an alpha channel (iOS's
+// "lift subject" cutouts save this way) needs that alpha to survive the
+// conversion so the white-fill below can composite it correctly. Asking
+// heic-to for JPEG directly made it flatten the alpha internally first -
+// onto black, per the canvas spec default - before our own code ever saw
+// the pixels, which is what caused a HEIC cutout to save with a black
+// background even though the exact same PNG uploaded directly came out
+// white.
+async function convertHeicToPng(file) {
   const { heicTo } = await import("heic-to");
-  const blob = await heicTo({ blob: file, type: "image/jpeg", quality: 0.92 });
+  const blob = await heicTo({ blob: file, type: "image/png" });
   // Re-wrap as a File (not just a Blob) so downstream error messages still
   // reference a sensible name instead of "file".
-  return new File([blob], (file.name || "photo").replace(HEIC_EXT_RE, ".jpg"), {
-    type: "image/jpeg",
+  return new File([blob], (file.name || "photo").replace(HEIC_EXT_RE, ".png"), {
+    type: "image/png",
   });
 }
 
@@ -45,9 +53,9 @@ async function convertHeicToJpeg(file) {
 // becomes a ~100KB record. Steps the size down further if the first pass is
 // still too big (very long screenshots), so uploads never bounce off the
 // server's size cap. Returns a data URL. HEIC/HEIF files are converted to
-// JPEG first (see convertHeicToJpeg above), then flow through the same
+// PNG first (see convertHeicToPng above), then flow through the same
 // resize pipeline as everything else.
-// libheif-wasm (the decoder behind convertHeicToJpeg) occasionally decodes a
+// libheif-wasm (the decoder behind convertHeicToPng) occasionally decodes a
 // HEIC photo as solid black instead of erroring - seen in practice with
 // HDR/gain-map shots and portrait-mode depth photos, where the decoder can
 // grab the wrong embedded image track. It's a known category of bug in
@@ -90,7 +98,7 @@ export function fileToDataUrl(file, maxDim = 900, quality = 0.8) {
       if (looksLikeHeic(file)) {
         wasHeic = true;
         try {
-          source = await convertHeicToJpeg(file);
+          source = await convertHeicToPng(file);
         } catch (e) {
           reject(
             new Error(
