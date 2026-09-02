@@ -30,7 +30,20 @@ const FAQS = [
   },
   {
     q: "Can I get my own?",
-    a: "Yes! I've made the GitHub repo public so you can fork and play. You'll need accounts with GitHub, Vercel, Upstash for the Redis database, and an Anthropic API key.",
+    a: (
+      <>
+        Yes! I've{" "}
+        <a
+          href="https://github.com/jessallison/stylist-app/tree/main"
+          target="_blank"
+          rel="noreferrer"
+        >
+          made the GitHub repo public
+        </a>{" "}
+        so you can fork and play. You'll need accounts with GitHub, Vercel,
+        Upstash for the Redis database, and an Anthropic API key.
+      </>
+    ),
   },
   {
     q: "What does it cost to run?",
