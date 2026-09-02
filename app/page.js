@@ -649,7 +649,13 @@ function LoginModal({ onClose, onSuccess, noClose = false, title = "Unlock" }) {
         body: JSON.stringify({ password: pw }),
       });
       if (res.ok) onSuccess(pw);
-      else setErr("Wrong password");
+      else {
+        // 429 carries its own message (too many attempts) - show that rather
+        // than "Wrong password", which would send someone who's now typing
+        // the right one round in circles.
+        const j = await res.json().catch(() => ({}));
+        setErr(j.error || "Wrong password");
+      }
     } catch {
       setErr("No connection - try again");
     } finally {
