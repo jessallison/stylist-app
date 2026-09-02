@@ -899,7 +899,7 @@ export default function WardrobeTab({
     cats.size + tagsSel.size + brands.size + cols.size + seas.size + status.size + flags.size;
 
   // Shuffle: picks from whatever's currently shown and wearable, respecting
-  // active search/filters - same "🎲 Surprise me" pattern as the recipe app.
+  // active search/filters.
   const luckyPool = shown.filter(
     (w) => w.status === "owned" && w.fitStatus !== "not_current"
   );
