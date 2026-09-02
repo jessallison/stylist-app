@@ -84,10 +84,9 @@ included in that JSON).
   product/resale pin (routed to the wardrobe as `wanted`, not used as styling
   reference).
 - Style profile: worn-outfit photos, grouped into Cold weather / Warm weather
-  / Fancy (matching how I export mine from Stylebook - a separate wardrobe-
-  logging app). These groupings are a hardcoded constant
-  (`PROFILE_CONTEXTS` in `lib/style-identity.js`), not a setting - rename or
-  add to them there if you group differently.
+  / Fancy. These groupings are a hardcoded constant (`PROFILE_CONTEXTS` in
+  `lib/style-identity.js`), not a setting - rename or add to them there if
+  you group differently.
 - Saved looks: any suggestion can be kept ("Save this look") - stored as item
   references plus the stylist's reasoning, listed on the Style me tab.
 - Hard suggestion rules, enforced after generation regardless of what the
