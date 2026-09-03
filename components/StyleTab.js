@@ -10,8 +10,10 @@ import { newId, norm, PhotoButton, Thumb, uploadImage, deleteImage } from "./sha
 //   C - style an anchor piece (an owned or wanted item, or a just-bought photo)
 //   M - build my own: pick pieces by hand, no AI call at all
 
-// One picked at random each time a suggestion run starts, held steady for
-// the whole loading state rather than re-rolled on every re-render.
+// Shown while a suggestion run is in flight. Starts on a random one so
+// repeat runs don't always open the same way, then advances every few
+// seconds - a message that changes is what stops a ten-second AI wait from
+// reading as frozen (see StylingLoader).
 const STYLING_MESSAGES = [
   "Building the outfit from the inside out",
   "Checking what goes with what",
@@ -42,7 +44,7 @@ export default function StyleTab({
     justMe: false,
   });
   const [busy, setBusy] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState(STYLING_MESSAGES[0]);
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   // Indices dismissed via "Not my thing" - hidden from view immediately,
@@ -52,6 +54,20 @@ export default function StyleTab({
   // Scroll target for the loading/results block below - see the comment in
   // run() for why this replaced scrolling to the page's absolute top.
   const resultsAnchorRef = useRef(null);
+  // Scroll target for a piece arriving from another tab ("Style this"): the
+  // loaded piece, the filters and the Style me button, so on a phone you
+  // land looking at exactly what to press next.
+  const configAnchorRef = useRef(null);
+
+  // Cycle the loading message while a run is in flight.
+  useEffect(() => {
+    if (!busy) return;
+    const t = setInterval(
+      () => setLoadingMsgIdx((i) => (i + 1) % STYLING_MESSAGES.length),
+      2800
+    );
+    return () => clearInterval(t);
+  }, [busy]);
   // Accumulates feedback entries recorded this session, seeded from the
   // loaded data. Not React state - nothing reads it back for display - but
   // it needs to be readable and updatable synchronously, immediately, so
@@ -115,7 +131,7 @@ export default function StyleTab({
       return;
     }
     setBusy(true);
-    setLoadingMsg(STYLING_MESSAGES[Math.floor(Math.random() * STYLING_MESSAGES.length)]);
+    setLoadingMsgIdx(Math.floor(Math.random() * STYLING_MESSAGES.length));
     setError(null);
     setResult(null);
     setDismissed(new Set());
@@ -153,7 +169,12 @@ export default function StyleTab({
   }
 
   // Requests arriving from other tabs ("Style this", "I bought it",
-  // "Match my wardrobe to this") auto-run the right flow.
+  // "Match my wardrobe to this") load the right flow with the piece
+  // selected and stop there - they used to fire the AI call immediately,
+  // which meant the season/occasion/colour filters were applied from
+  // whatever they were last set to, with no chance to change them first.
+  // Now you land looking at the loaded piece and the filter row, and press
+  // Style me when it's set the way you want. One extra tap, no surprises.
   useEffect(() => {
     if (!request || ranRequest.current === request) return;
     ranRequest.current = request;
@@ -161,13 +182,18 @@ export default function StyleTab({
       setFlow("C");
       setAnchorId(request.anchorId);
       setImage(null);
-      run({ flow: "C", anchorId: request.anchorId, image: null });
     } else if (request.inspoId) {
       setFlow("A");
       setInspoId(request.inspoId);
       setImage(null);
-      run({ flow: "A", inspoId: request.inspoId, image: null });
     }
+    setResult(null);
+    setError(null);
+    // Same one-tick deferral as the scroll in run(): the target only exists
+    // after React has flushed the flow change above.
+    setTimeout(() => {
+      configAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
     clearRequest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request]);
@@ -336,7 +362,7 @@ export default function StyleTab({
       </div>
 
       {flow === "A" && (
-        <div className="flow-config">
+        <div className="flow-config" ref={configAnchorRef}>
           <div className="row">
             <select value={inspoId} onChange={(e) => { setInspoId(e.target.value); setImage(null); }}>
               <option value="">Pick from the inspo library…</option>
@@ -370,7 +396,7 @@ export default function StyleTab({
       )}
 
       {flow === "C" && (
-        <div className="flow-config">
+        <div className="flow-config" ref={configAnchorRef}>
           <div className="row">
             <select value={anchorId} onChange={(e) => { setAnchorId(e.target.value); setImage(null); }}>
               <option value="">Pick a piece I own…</option>
@@ -482,7 +508,25 @@ export default function StyleTab({
       )}
 
       <div ref={resultsAnchorRef}>
-      {busy && <div className="empty">{loadingMsg}…</div>}
+      {busy && (
+        <StylingLoader
+          message={STYLING_MESSAGES[loadingMsgIdx]}
+          heading={
+            flow === "C"
+              ? `Styling ${anchorId && byId[anchorId] ? byId[anchorId].name : "your new piece"}`
+              : flow === "A"
+                ? "Matching your inspo"
+                : "Styling from your wardrobe"
+          }
+          thumb={
+            flow === "C"
+              ? { dataUrl: image, photoId: anchorId ? byId[anchorId]?.photoId : null }
+              : flow === "A"
+                ? { dataUrl: image, photoId: inspoId ? data.inspo.find((i) => i.id === inspoId)?.photoId : null }
+                : null
+          }
+        />
+      )}
       {error && <div className="notice err-notice">{error}</div>}
 
       {result && (
@@ -566,6 +610,82 @@ export default function StyleTab({
 // way to tell automatically; dismissing just clears the stale note. Fresh,
 // unsaved suggestions don't get a dismiss control - those gaps are
 // regenerated on every run anyway.
+// The in-flight state for a suggestion run. Three layers, because an AI
+// call is a long wait by web standards (five to fifteen seconds) and no
+// single cue carries that on its own:
+//   - what it's working on: the piece's own thumbnail and name up top, the
+//     strongest "yes, it heard you" signal there is, and free since the
+//     image is already loaded;
+//   - what's coming: skeleton cards the same shape as the real outfit
+//     cards, so the eye knows where to look and what to expect;
+//   - that it's still alive: the message cycles, and a coat hanger swings.
+// Everything is inline SVG and CSS - no animation library, no image file,
+// nothing to download - and the motion switches off under
+// prefers-reduced-motion (see globals.css).
+function StylingLoader({ message, heading, thumb }) {
+  return (
+    <div className="styling-loader" role="status" aria-live="polite">
+      <div className="styling-head">
+        {thumb && (thumb.dataUrl || thumb.photoId) ? (
+          <Thumb dataUrl={thumb.dataUrl} photoId={thumb.photoId} className="styling-thumb" />
+        ) : (
+          <div className="styling-thumb styling-thumb-empty" aria-hidden="true" />
+        )}
+        <div className="styling-text">
+          <div className="styling-title">
+            <Hanger />
+            <span>{heading}</span>
+          </div>
+          <div className="styling-msg" key={message}>
+            {message}…
+          </div>
+        </div>
+      </div>
+      <div className="results skeleton-results" aria-hidden="true">
+        {[0, 1, 2].map((n) => (
+          <div key={n} className="card outfit-card skeleton-card">
+            <div className="outfit-head">
+              <div className="sk sk-title" />
+            </div>
+            <div className="outfit-items">
+              {[0, 1, 2, 3].map((m) => (
+                <div key={m} className="outfit-item">
+                  <div className="sk sk-thumb" />
+                  <div className="sk sk-name" />
+                </div>
+              ))}
+            </div>
+            <div className="sk sk-line" />
+            <div className="sk sk-line short" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// A coat hanger, drawn once as inline SVG and set swinging by CSS. Pivots
+// from the hook so it moves the way a real one does.
+function Hanger() {
+  return (
+    <svg
+      className="hanger"
+      viewBox="0 0 48 40"
+      width="34"
+      height="28"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M24 3.5a4 4 0 1 1 4 4c-2 0-4 1.4-4 3.5v3" />
+      <path d="M24 14 4.5 27.5c-1.4 1-.7 3.2 1 3.2h37c1.7 0 2.4-2.2 1-3.2L24 14z" />
+    </svg>
+  );
+}
+
 function OutfitCard({ o, byId, newThumb, actions, onDismissGap }) {
   return (
     <div className="card outfit-card">
