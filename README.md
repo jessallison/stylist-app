@@ -92,9 +92,11 @@ included in that JSON).
 - Hard suggestion rules, enforced after generation regardless of what the
   model returns (or, with no API key, applied directly in the random-shuffle
   fallback): never two pairs of shoes, bags, sunglasses, belts, hats or
-  gloves in one outfit, and any per-item `excludeWith` pairs set on the
-  wardrobe form ("doesn't pair with") are dropped if both sides show up
-  together.
+  gloves in one outfit; never two pairs of long trousers (leggings under
+  shorts is allowed - "long" is any Bottoms item whose name or tags don't
+  say shorts, leggings, tights, skort or hot pants); and any per-item
+  `excludeWith` pairs set on the wardrobe form ("doesn't pair with") are
+  dropped if both sides show up together.
 
 A public, unauthenticated `/faq` page (linked from the login screen and
 footer) covers what the app is, how it was built and how to get your own copy

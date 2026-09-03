@@ -298,6 +298,23 @@ export async function POST(request) {
   // it's parked in IDEAS.md rather than guessed at with name-matching.
   const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts", "Hats", "Gloves"];
 
+  // At most one pair of long trousers per outfit. Leggings under shorts is
+  // a look; jeans under wide-legs is not. Bottoms is a single category, so
+  // "long pants" is Bottoms minus the short and skin-tight kinds, matched on
+  // the item's name and tags. This is the one place name-matching is used
+  // for a hard rule: the alternative (a length subfield on every Bottoms
+  // item, plus a backfill) is a lot of structure for a rule with an obvious
+  // lexical signal, and the failure mode of a miss is one odd suggestion,
+  // not a broken outfit. Shared by both the AI path and the no-key fallback.
+  const itemOf = new Map(wardrobe.map((w) => [w.id, w]));
+  const NOT_LONG_PANTS_RE = /\b(shorts?|leggings?|tights?|skorts?|hot ?pants)\b/i;
+  const isLongPants = (id) => {
+    const w = itemOf.get(id);
+    if (!w || w.category !== "Bottoms") return false;
+    return !NOT_LONG_PANTS_RE.test([w.name, ...(w.tags || [])].join(" "));
+  };
+  const onePairOfLongPants = (o) => o.item_ids.filter(isLongPants).length <= 1;
+
   // No ANTHROPIC_API_KEY configured - a fresh deployment before someone's
   // added a key, or one that never plans to. Flow A needs actual image
   // reasoning (matching a look's silhouette/colour logic), which has no
@@ -319,7 +336,8 @@ export async function POST(request) {
         o.item_ids.length >= 2 &&
         ONE_PER_OUTFIT_CATEGORIES.every(
           (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
-        )
+        ) &&
+        onePairOfLongPants(o)
     );
     if (!randomOutfits.length) {
       return Response.json(
@@ -402,7 +420,8 @@ ${identityText(settings)}
 RULES:
 - item_ids may only contain ids from the OWNED WARDROBE list${anchor ? ` (plus the anchor ${anchor.id})` : ""}${flow === "C" && !anchor ? ` (plus "NEW" for the just-bought anchor)` : ""}.
 - 2 to 6 items per outfit; complete looks (shoes/outerwear when the wardrobe has suitable ones), accessories encouraged.
-- Never more than one pair of shoes, one bag, one pair of sunglasses, or one belt in the same outfit.
+- Never more than one pair of shoes, one bag, one pair of sunglasses, one belt, one hat or one pair of gloves in the same outfit.
+- Never two pairs of long trousers (jeans, trousers, wide-legs, joggers) in one outfit. Leggings under shorts is fine; jeans under trousers is not.
 - Before returning an outfit, check it against the three words. If it doesn't honour at least two, fix it or drop it.
 - Where an outfit follows a CONFIRMED REGULAR, say which in "formula".
 - Gaps: if a look genuinely needs something they don't own, check the WANTED list first - if a wanted item fits, reference it by id ("you've already got your eye on this") instead of a generic suggestion. Only note real gaps, not nice-to-haves.
@@ -498,7 +517,8 @@ ${flowText}`;
           // guarantee.
           ONE_PER_OUTFIT_CATEGORIES.every(
             (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
-          )
+          ) &&
+          onePairOfLongPants(o)
       );
 
     if (!outfits.length) {
