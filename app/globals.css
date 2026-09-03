@@ -1485,6 +1485,19 @@ header.top {
   max-width: 62ch;
 }
 
+/* Today's weather, above the filter row on Style me. One line, muted, so
+   it informs the filters rather than competing with them. */
+.weather-line {
+  font-size: 0.86rem;
+  color: var(--ink);
+  margin: 2px 0 10px;
+  line-height: 1.5;
+}
+
+.weather-note {
+  color: var(--muted);
+}
+
 /* In-flight state for a suggestion run (StylingLoader in StyleTab.js).
    All CSS and inline SVG - no library, no image, nothing to download. */
 .styling-loader {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { PROFILE_CONTEXTS } from "../lib/style-identity";
+import { geocodeCity } from "../lib/weather";
 import {
   newId,
   PhotoButton,
@@ -17,9 +18,9 @@ import {
   DupesToggle,
 } from "./shared";
 
-// Style profile: worn-outfit photos exported by hand from Stylebook's
-// "Cold Weather" / "Warm Weather" / "Fancy" folders, same three groupings -
-// plus the editable style identity (three words, vocabulary, regulars).
+// Style profile: worn-outfit photos in three groupings (Cold weather / Warm
+// weather / Fancy - PROFILE_CONTEXTS), plus the editable style identity
+// (three words, vocabulary, regulars, home city for today's weather).
 
 export default function ProfileTab({
   data,
@@ -109,6 +110,7 @@ export default function ProfileTab({
   const [busy, setBusy] = useState(0);
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [idForm, setIdForm] = useState(null);
+  const [savingIdentity, setSavingIdentity] = useState(false);
   const [showDuplicates, setShowDuplicates] = useState(false);
   // Tapping a vocabulary word reveals the owned pieces tagged with it - turns
   // the word list from a description into something you can actually see.
@@ -181,12 +183,33 @@ export default function ProfileTab({
       threeWords: settings.threeWords.map((t) => ({ ...t })),
       vocab: settings.vocab.join(", "),
       regulars: settings.regulars.join("\n"),
+      homeCity: settings.home?.label || "",
     });
     setEditingIdentity(true);
   }
 
   async function saveIdentity(e) {
     e.preventDefault();
+    setSavingIdentity(true);
+    // Home city: resolved to coordinates here, once, so the Style me tab only
+    // ever has to fetch the forecast. Unchanged text keeps the stored
+    // coordinates; cleared text clears them; new text is geocoded, and if
+    // nothing matches the rest of the form still saves and the city is left
+    // as it was, with a flash saying so.
+    let home = settings.home || null;
+    const typed = (idForm.homeCity || "").trim();
+    let cityNote = "";
+    if (!typed) {
+      home = null;
+    } else if (typed !== (settings.home?.label || "")) {
+      try {
+        const found = await geocodeCity(typed);
+        if (found) home = found;
+        else cityNote = ` - couldn't find "${typed}", city left as it was`;
+      } catch {
+        cityNote = " - couldn't look the city up just now, left as it was";
+      }
+    }
     const next = {
       threeWords: idForm.threeWords
         .filter((t) => t.word.trim())
@@ -199,11 +222,13 @@ export default function ProfileTab({
         .split("\n")
         .map((s) => s.trim())
         .filter(Boolean),
+      home,
     };
     const ok = await save("settings", next);
+    setSavingIdentity(false);
     if (ok) {
       setEditingIdentity(false);
-      flash("Style identity saved");
+      flash("Style identity saved" + cityNote);
     }
   }
 
@@ -242,6 +267,12 @@ export default function ProfileTab({
                   <li key={r}>{r}</li>
                 ))}
               </ul>
+            </div>
+            <div className="meta" style={{ marginTop: 8 }}>
+              <b>Home city:</b>{" "}
+              {settings.home?.label || (
+                <span className="count">not set - add one and Style me shows today&rsquo;s weather</span>
+              )}
             </div>
             <div className="card-actions">
               <button className="chip" onClick={startIdentityEdit}>
@@ -371,9 +402,23 @@ export default function ProfileTab({
               onChange={(e) => setIdForm({ ...idForm, regulars: e.target.value })}
             />
           </div>
+          <div>
+            <label>Home city</label>
+            <div className="meta">
+              For today&rsquo;s weather on the Style me tab - the season filter
+              is set from it and the stylist dresses for the conditions. Leave
+              blank to skip. Only the city&rsquo;s coordinates ever leave the
+              browser (to Open-Meteo, a free forecast service).
+            </div>
+            <input
+              placeholder="e.g. Melbourne"
+              value={idForm.homeCity}
+              onChange={(e) => setIdForm({ ...idForm, homeCity: e.target.value })}
+            />
+          </div>
           <div className="row" style={{ marginBottom: 0 }}>
-            <button className="btn" type="submit">
-              Save
+            <button className="btn" type="submit" disabled={savingIdentity}>
+              {savingIdentity ? "Saving…" : "Save"}
             </button>
             <button
               className="btn ghost"

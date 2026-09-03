@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SEASONS, OCCASIONS, COLOURS, CATEGORIES } from "../lib/style-identity";
 import { newId, norm, PhotoButton, Thumb, uploadImage, deleteImage } from "./shared";
+import { fetchToday, seasonFromWeather, summarise } from "../lib/weather";
 
 // The three AI entry flows of the suggestion engine, plus one manual one:
 //   A - match an inspo image (from the library, or a fresh upload)
@@ -58,6 +59,46 @@ export default function StyleTab({
   // loaded piece, the filters and the Style me button, so on a phone you
   // land looking at exactly what to press next.
   const configAnchorRef = useRef(null);
+
+  // Today's weather for the home city (Profile tab). Fetched once per visit
+  // to this tab, straight from the browser to Open-Meteo. Absent home city,
+  // absent network, or a failed call all resolve to "no line shown" - the
+  // filters work exactly as before, nothing depends on this succeeding.
+  const home = data.settings?.home || null;
+  const [weather, setWeather] = useState(null);
+  const [weatherFailed, setWeatherFailed] = useState(false);
+  // Whether the season filter's current value came from the weather rather
+  // than the person - drives the "set from today" note, and stops a later
+  // weather load from overriding a season they've since chosen by hand.
+  const [seasonFromToday, setSeasonFromToday] = useState(false);
+  const seasonTouched = useRef(false);
+  useEffect(() => {
+    if (!home?.lat) {
+      setWeather(null);
+      return;
+    }
+    let cancelled = false;
+    setWeatherFailed(false);
+    fetchToday(home)
+      .then((w) => {
+        if (cancelled) return;
+        setWeather(w);
+        const s = seasonFromWeather(w);
+        if (s && !seasonTouched.current) {
+          setFilters((f) => (f.season ? f : { ...f, season: s }));
+          setSeasonFromToday(true);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setWeather(null);
+        setWeatherFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [home?.lat, home?.lon]);
 
   // Cycle the loading message while a run is in flight.
   useEffect(() => {
@@ -121,6 +162,21 @@ export default function StyleTab({
       inspoId: f === "A" ? overrides.inspoId ?? inspoId : undefined,
       anchorId: f === "C" ? overrides.anchorId ?? anchorId : undefined,
       image: overrides.image !== undefined ? overrides.image : image,
+      // Today's conditions, when known - the stylist is told them so it can
+      // reason about rain and in-between days, not just the season bucket.
+      weather:
+        weather && home
+          ? {
+              city: home.city,
+              tempC: weather.tempC,
+              feelsC: weather.feelsC,
+              highC: weather.highC,
+              lowC: weather.lowC,
+              rainProb: weather.rainProb,
+              description: weather.description,
+              wet: weather.wet,
+            }
+          : undefined,
     };
     if (f === "A" && !body.inspoId && !body.image) {
       flash("Pick an inspo image or upload one first");
@@ -453,10 +509,30 @@ export default function StyleTab({
             their row, which is right for the single-select rows above but
             leaves no room here) so Style me and YOLO sit on the same line,
             YOLO pushed to the far right via margin-left: auto. */}
+        {home && !weatherFailed && (
+          <div className="weather-line">
+            {weather ? (
+              <>
+                {summarise(home.city, weather)}
+                {seasonFromToday && filters.season && (
+                  <span className="weather-note">
+                    {" "}· season set to {filters.season.toLowerCase()} from this
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="weather-note">Checking today&rsquo;s weather in {home.city}…</span>
+            )}
+          </div>
+        )}
         <div className="row filter-row">
           <select
             value={filters.season}
-            onChange={(e) => setFilters({ ...filters, season: e.target.value })}
+            onChange={(e) => {
+              seasonTouched.current = true;
+              setSeasonFromToday(false);
+              setFilters({ ...filters, season: e.target.value });
+            }}
           >
             <option value="">Any season</option>
             {SEASONS.map((s) => (

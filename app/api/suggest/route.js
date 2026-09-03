@@ -84,6 +84,35 @@ function shuffled(arr) {
     .map(([, v]) => v);
 }
 
+// The browser sends today's conditions along with the request (see the
+// weather block in POST). Anything that isn't the expected shape is dropped
+// wholesale - it's an optional nicety, so "no weather" is always the safe
+// answer. Temperatures are bounded to a plausible range, text is clipped
+// and stripped to plain characters so nothing odd can be smuggled into the
+// prompt through a city name.
+function sanitiseWeather(w) {
+  if (!w || typeof w !== "object") return null;
+  const num = (v, lo, hi) =>
+    typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi ? Math.round(v) : null;
+  const text = (v, max) =>
+    typeof v === "string" ? v.replace(/[^\p{L}\p{N} '.,-]/gu, "").trim().slice(0, max) : "";
+  const tempC = num(w.tempC, -60, 60);
+  const highC = num(w.highC, -60, 60);
+  const lowC = num(w.lowC, -60, 60);
+  const city = text(w.city, 40);
+  if (tempC == null || highC == null || lowC == null || !city) return null;
+  return {
+    city,
+    tempC,
+    feelsC: num(w.feelsC, -60, 60) ?? tempC,
+    highC,
+    lowC,
+    rainProb: num(w.rainProb, 0, 100),
+    description: text(w.description, 40),
+    wet: w.wet === true,
+  };
+}
+
 function buildRandomOutfits({ pool, anchor, filters, hardExcludePairs, count = 3 }) {
   const seasonOk = (w) =>
     !filters.season || w.season === filters.season || w.season === "All seasons";
@@ -386,6 +415,31 @@ export async function POST(request) {
     filterLines.push(
       `"Just me" - no occasion at all. Dress for their own pleasure: their Saturday-morning self, how they look when nobody needs them to look like anything.`
     );
+
+  // Today's weather, fetched by the browser from Open-Meteo for the home
+  // city set on the Profile tab (see lib/weather.js). Client-supplied, so
+  // it's shape-checked and length-capped before it goes anywhere near the
+  // prompt: numbers must be numbers, strings are clipped, anything off is
+  // dropped rather than passed through. Absent or malformed = no weather
+  // line, and the season filter alone carries the day, as before.
+  const weather = sanitiseWeather(body.weather);
+  if (weather) {
+    const bits = [`${weather.tempC}°C now`];
+    if (Math.abs(weather.feelsC - weather.tempC) >= 2) bits.push(`feels like ${weather.feelsC}°`);
+    if (weather.description) bits.push(weather.description);
+    bits.push(`high ${weather.highC}°, low ${weather.lowC}°`);
+    if (weather.rainProb != null && weather.rainProb >= 30) bits.push(`${weather.rainProb}% chance of rain`);
+    filterLines.push(
+      `Today's weather in ${weather.city}: ${bits.join(", ")}. Dress for the actual day, not just the season: ` +
+        (weather.wet
+          ? "it's wet, so favour outerwear and shoes that can take rain where the wardrobe has them, and skip suede or anything precious. "
+          : "") +
+        (weather.highC - weather.lowC >= 10
+          ? "Big swing between morning and afternoon - build in a layer that comes off. "
+          : "") +
+        "Mention the weather in \"why\" only where it actually shaped a choice."
+    );
+  }
 
   const flowText =
     flow === "A"

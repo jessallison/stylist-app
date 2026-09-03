@@ -24,10 +24,12 @@ items.
 
 Next.js (app router, no TypeScript, no CSS framework), Upstash Redis via REST
 with an in-memory fallback for local dev, one shared `ADMIN_PASSWORD`,
-deployed on Vercel from GitHub. Two pieces beyond that base stack: the
+deployed on Vercel from GitHub. Three pieces beyond that base stack: the
 Claude API (vision) for tag suggestions on entry, inspo classification, and
-the suggestion engine itself; and remove.bg for wardrobe photo background
-cleanup.
+the suggestion engine itself; remove.bg for wardrobe photo background
+cleanup; and Open-Meteo for today's weather (free, no key, no account,
+called straight from the browser - only the home city's coordinates ever
+leave it).
 
 A deliberate design choice: the password gates **viewing** as well as
 editing, not just editing. The wardrobe holds personal photos, so nothing is
@@ -89,6 +91,12 @@ included in that JSON).
   you group differently.
 - Saved looks: any suggestion can be kept ("Save this look") - stored as item
   references plus the stylist's reasoning, listed on the Style me tab.
+- Home city (optional, set on the Profile tab under the style identity):
+  Style me then shows today's weather in one line, pre-sets the season
+  filter from the day's high (17° and under is cold, 24° and over is warm,
+  in between is left at "Any season" - that's layering weather), and tells
+  the stylist the actual conditions so it can reason about rain and big
+  morning-to-afternoon swings. Everything still works with no city set.
 - Hard suggestion rules, enforced after generation regardless of what the
   model returns (or, with no API key, applied directly in the random-shuffle
   fallback): never two pairs of shoes, bags, sunglasses, belts, hats or
