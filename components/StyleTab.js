@@ -475,7 +475,7 @@ export default function StyleTab({
             }
             title="No occasion - dressing purely for myself"
           >
-            ✦ YOLO
+            ✦ YOLO MODE
           </button>
         </div>
       </div>
