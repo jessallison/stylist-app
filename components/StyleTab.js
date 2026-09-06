@@ -374,6 +374,21 @@ export default function StyleTab({
     if (ok && look.anchorPhotoId) deleteImage(adminKey, look.anchorPhotoId);
   }
 
+  async function renameLook(look) {
+    if (!unlocked) {
+      needAuth();
+      return;
+    }
+    const next = prompt("Rename this look", look.title);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === look.title) return;
+    const ok = await save("looks", (cur) =>
+      (cur || []).map((l) => (l.id === look.id ? { ...l, title: trimmed } : l))
+    );
+    if (ok) flash(`Renamed to "${trimmed}"`);
+  }
+
   async function dismissGap(lookId, gapIndex) {
     await save("looks", (cur) =>
       (cur || []).map((l) =>
@@ -666,9 +681,14 @@ export default function StyleTab({
                   newThumb={{ photoId: l.anchorPhotoId }}
                   onDismissGap={(gapIndex) => dismissGap(l.id, gapIndex)}
                   actions={
-                    <button className="chip" onClick={() => removeLook(l)}>
-                      Remove
-                    </button>
+                    <>
+                      <button className="chip" onClick={() => renameLook(l)}>
+                        Rename
+                      </button>
+                      <button className="chip" onClick={() => removeLook(l)}>
+                        Remove
+                      </button>
+                    </>
                   }
                 />
               ))}
