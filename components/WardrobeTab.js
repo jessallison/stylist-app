@@ -208,13 +208,22 @@ export default function WardrobeTab({
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        if (j.error !== "no-key") flash("Background removal failed - kept the original photo");
+        // Show remove.bg's actual reason (e.g. "Could not identify
+        // foreground") rather than a generic message - it's the difference
+        // between "reframe the photo" and "check the remove.bg account".
+        if (j.error !== "no-key") {
+          flash(
+            j.error
+              ? `Background removal failed (${j.error}) - kept the original photo`
+              : "Background removal failed - kept the original photo"
+          );
+        }
         return rawDataUrl;
       }
       const j = await res.json();
       return j.dataUrl;
     } catch {
-      flash("Background removal failed - kept the original photo");
+      flash("Background removal failed - connection issue - kept the original photo");
       return rawDataUrl;
     } finally {
       setBgBusy(false);
