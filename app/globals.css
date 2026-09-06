@@ -1102,9 +1102,17 @@ header.top {
   font-weight: 600;
 }
 
+/* Formula text is the AI's own free-form summary ("cardigan + tee +
+   trouser") - unlike the other badges (fixed, short labels), it has no
+   length limit, so the base .badge's white-space: nowrap would force this
+   one wide enough to blow out the outfit card (and, since Saved looks is a
+   single shared grid column, every card in it) on a long one. Let it wrap
+   like normal text instead. */
 .badge.formula {
   border-color: var(--ink);
   color: var(--ink);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .badge.type-outfit {
@@ -1406,16 +1414,21 @@ header.top {
 
 /* Saved looks are browsed as a reference list rather than reviewed one at a
    time like fresh suggestions, so two columns reads better once there's
-   room - stays single-column on narrow screens so cards don't get cramped. */
+   room - stays single-column on narrow screens so cards don't get cramped.
+   minmax(0, 1fr), not a bare 1fr: a bare fr track still won't shrink below
+   its widest cell's content (min-width: auto), and because every card
+   shares the same column, one long unwrapped value in any one of them
+   (see .badge.formula) used to stretch the whole column - and every card
+   in it - past the page's edge on mobile. */
 .results.saved-looks {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
 
 @media (min-width: 700px) {
   .results.saved-looks {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1431,6 +1444,7 @@ header.top {
 
 .outfit-card {
   padding: 22px 24px;
+  min-width: 0;
 }
 
 .outfit-head {
@@ -1447,6 +1461,8 @@ header.top {
   font-size: 1.35rem;
   font-weight: 500;
   -webkit-line-clamp: unset;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .outfit-items {
@@ -1470,12 +1486,14 @@ header.top {
   color: var(--muted);
   margin-top: 6px;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .outfit-why {
   font-size: 0.92rem;
   line-height: 1.6;
   max-width: 62ch;
+  overflow-wrap: anywhere;
 }
 
 .outfit-notes {
@@ -1483,6 +1501,7 @@ header.top {
   color: var(--muted);
   margin-top: 8px;
   max-width: 62ch;
+  overflow-wrap: anywhere;
 }
 
 /* Today's weather, above the filter row on Style me. One line, muted, so
