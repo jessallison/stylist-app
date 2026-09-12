@@ -407,6 +407,17 @@ export default function Home() {
       const ok = await save("wardrobe", (cur) => [...cur, item]);
       if (ok) {
         flash(`"${item.name}" added as wanted - check its tags in Wardrobe`);
+        // Mark this pin as actioned so its "I want this" button turns into a
+        // done state instead of staying live - without this, clicking it
+        // again created a second wardrobe item every time (see InspoTab's
+        // wantedItemId check). Best-effort: if this particular save loses a
+        // 409 race, the wardrobe item above is already safely saved either
+        // way - only the button's own state would stay stale until reload.
+        save("inspo", (cur) =>
+          (cur || []).map((x) =>
+            x.id === inspoItem.id ? { ...x, wantedItemId: item.id } : x
+          )
+        );
       } else {
         deleteImage(adminKey, photoId);
       }

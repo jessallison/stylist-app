@@ -58,6 +58,26 @@ export default function InspoTab({
   const [occs, setOccs] = useState(new Set());
   const [seas, setSeas] = useState(new Set());
   const [showDuplicates, setShowDuplicates] = useState(false);
+  // Inspo ids with an "I want this" / "Add to wardrobe as wanted" call
+  // in flight - onAddWanted is a multi-step round trip (copy the photo,
+  // background-remove, tag, then save), so without this a fast double-click
+  // fires it twice before the persisted i.wantedItemId (set once it
+  // resolves) has a chance to hide the button and stop it happening again.
+  const [addingWanted, setAddingWanted] = useState(new Set());
+
+  async function handleAddWanted(i) {
+    if (i.wantedItemId || addingWanted.has(i.id)) return;
+    setAddingWanted((cur) => new Set(cur).add(i.id));
+    try {
+      await onAddWanted(i);
+    } finally {
+      setAddingWanted((cur) => {
+        const next = new Set(cur);
+        next.delete(i.id);
+        return next;
+      });
+    }
+  }
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [urlBusy, setUrlBusy] = useState(false);
@@ -647,19 +667,26 @@ export default function InspoTab({
                 link under the thumb, matching whichever primary action
                 card-actions below would otherwise show for this type. */}
             {i.type === "product" ? (
-              <button
-                className="chip compact-style-link"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddWanted(i);
-                }}
-              >
-                {/* Shorter than the full-view "Add to wardrobe" (card-actions
-                    below, not width-constrained) - at compact-tile width
-                    that wrapped onto two lines with the underline breaking
-                    mid-word, which read as broken rather than just narrow. */}
-                + I want this
-              </button>
+              i.wantedItemId ? (
+                <span className="chip compact-style-link added-link" aria-hidden="true">
+                  Added ✓
+                </span>
+              ) : (
+                <button
+                  className="chip compact-style-link"
+                  disabled={addingWanted.has(i.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddWanted(i);
+                  }}
+                >
+                  {/* Shorter than the full-view "Add to wardrobe" (card-actions
+                      below, not width-constrained) - at compact-tile width
+                      that wrapped onto two lines with the underline breaking
+                      mid-word, which read as broken rather than just narrow. */}
+                  {addingWanted.has(i.id) ? "Adding…" : "+ I want this"}
+                </button>
+              )
             ) : (
               <button
                 className="chip compact-style-link"
@@ -689,15 +716,22 @@ export default function InspoTab({
               {i.notes && <div className="meta">{i.notes}</div>}
               <div className="card-actions">
                 {i.type === "product" ? (
-                  <button
-                    className="chip"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAddWanted(i);
-                    }}
-                  >
-                    Add to wardrobe as wanted
-                  </button>
+                  i.wantedItemId ? (
+                    <span className="chip added-link" aria-hidden="true">
+                      Added to wardrobe ✓
+                    </span>
+                  ) : (
+                    <button
+                      className="chip"
+                      disabled={addingWanted.has(i.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddWanted(i);
+                      }}
+                    >
+                      {addingWanted.has(i.id) ? "Adding…" : "Add to wardrobe as wanted"}
+                    </button>
+                  )
                 ) : (
                   <button
                     className="chip"

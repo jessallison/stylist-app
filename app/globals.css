@@ -1173,6 +1173,33 @@ header.top {
   color: var(--ink);
 }
 
+/* Once an inspo pin has been added to wardrobe (i.wantedItemId set), swap
+   the action for a plain done-state label rather than leaving "I want
+   this"/"Add to wardrobe as wanted" live - clicking either again used to
+   create a whole separate duplicate wardrobe entry (its own fresh photo,
+   background-removal and AI tag call), since nothing tracked that the pin
+   had already been actioned. Not a link, so no hover colour change either
+   way - static text, not something to reach for again. */
+.added-link {
+  cursor: default;
+}
+
+.card-actions .chip.added-link {
+  text-decoration: none;
+}
+
+.card-actions .chip.added-link:hover {
+  color: var(--muted);
+}
+
+.grid.compact .compact-style-link.added-link {
+  text-decoration: none;
+}
+
+.grid.compact .compact-style-link.added-link:hover {
+  color: var(--muted);
+}
+
 /* --- Forms ------------------------------------------------------------------ */
 
 .row {
