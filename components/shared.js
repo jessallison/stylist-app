@@ -244,27 +244,15 @@ export function ChipPick({ options, value, onChange, multi = false, swatches }) 
 // "how often" can mean different things depending on what's being counted.
 export function TagCloud({ options, counts, value, onChange }) {
   if (!options.length) return null;
-  const max = Math.max(1, ...options.map((o) => counts?.[o] || 0));
   return (
     <div className="tag-cloud">
       {options.map((opt) => {
         const on = value === opt;
-        const n = counts?.[opt] || 0;
-        // 0.6rem-0.95rem, matching ChipPick's own 0.6rem base at the low end
-        // so an unused tag doesn't look broken, just quiet. Square-root, not
-        // linear: real usage is skewed (a couple of tags used a lot, most
-        // used once or twice), and scaling linearly against that one high
-        // number crushes everything else down near the same tiny floor -
-        // looked like two size tiers instead of a gradient. sqrt compresses
-        // the top end and stretches out the low end, so "used once" and
-        // "used three times" actually read as different sizes.
-        const size = 0.6 + (Math.sqrt(n) / Math.sqrt(max)) * 0.35;
         return (
           <button
             type="button"
             key={opt}
             className={`chip ${on ? "on" : ""}`}
-            style={{ fontSize: `${size.toFixed(2)}rem` }}
             onClick={() => onChange(on ? null : opt)}
           >
             {opt}

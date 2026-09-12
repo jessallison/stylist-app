@@ -42,13 +42,6 @@ export default function ProfileTab({
   const looks = data.looks || [];
   const byId = Object.fromEntries(wardrobe.map((w) => [w.id, w]));
 
-  // How often each vocab word actually shows up across owned pieces - what
-  // the size-weighted cloud below is drawn from.
-  const vocabCounts = {};
-  for (const w of wardrobe) {
-    for (const t of w.tags || []) vocabCounts[t] = (vocabCounts[t] || 0) + 1;
-  }
-
   // A saved look only carries its own photo when it was built around a
   // freshly-photographed "NEW" piece - otherwise borrow the first item's
   // wardrobe shot, so the tile always has something real to show.
@@ -251,12 +244,11 @@ export default function ProfileTab({
               ))}
             </div>
             <div className="meta" style={{ marginTop: 10 }}>
-              <b>Vocabulary:</b>
+              <b>Your wardrobe is:</b>
             </div>
             <div className="vocab-chips">
               <TagCloud
                 options={settings.vocab}
-                counts={vocabCounts}
                 value={vocabFocus}
                 onChange={setVocabFocus}
               />
