@@ -2116,6 +2116,35 @@ header.top {
   }
 }
 
+/* Below ~480px (iPhone-width phones) the four tabs + Dark + Lock no longer
+   fit even on their own full-width row, so they wrap - tighten padding,
+   letter-spacing and the icon-button margins enough to keep it to one line.
+   This overrides the >480px wrap-accommodation rules above, since nothing
+   wraps here for them to accommodate. */
+@media (max-width: 480px) {
+  .top-nav {
+    gap: 0;
+    flex-wrap: nowrap;
+  }
+  .top-nav button:not(.theme-btn):not(.lock-btn) {
+    padding: 8px 7px;
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .top-nav .theme-btn {
+    margin-left: 4px;
+  }
+  .top-nav .lock-btn {
+    margin-left: 4px;
+  }
+  .lock-btn {
+    padding: 7px 8px;
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+  }
+}
+
 .toast {
   position: fixed;
   bottom: 24px;
