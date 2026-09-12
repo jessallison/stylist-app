@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SEASONS, OCCASIONS, COLOURS, CATEGORIES } from "../lib/style-identity";
-import { newId, norm, PhotoButton, Thumb, uploadImage, deleteImage } from "./shared";
+import { newId, norm, PhotoButton, Thumb, TileToggle, uploadImage, deleteImage } from "./shared";
 import { fetchToday, seasonFromWeather, summarise } from "../lib/weather";
 
 // The three AI entry flows of the suggestion engine, plus one manual one:
@@ -127,6 +127,32 @@ export default function StyleTab({
       lookOrderRef.current.set(id, Math.random());
     }
     return lookOrderRef.current.get(id);
+  }
+
+  // Saved-looks density: "large" (current full-detail cards) vs "compact"
+  // (name, item photos and styling notes only - no item names, no "why"
+  // paragraph, four per row instead of two) - for scanning a big saved-looks
+  // list rather than reading one at a time. A separate preference from
+  // Wardrobe/Inspo's tile toggle (see TileToggle in shared.js): this tab is
+  // the only thing that reads it, so it's local state, not lifted to page.js
+  // - but still persisted, the same way, since a 29-look review session is
+  // exactly the kind of thing a reload shouldn't reset.
+  const [looksView, setLooksViewState] = useState("large");
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("stylist-looks-view");
+      if (stored === "compact" || stored === "large") setLooksViewState(stored);
+    } catch {
+      /* localStorage unavailable - just keep the default */
+    }
+  }, []);
+  function setLooksView(next) {
+    setLooksViewState(next);
+    try {
+      localStorage.setItem("stylist-looks-view", next);
+    } catch {
+      /* best-effort persistence only */
+    }
   }
 
   // Manual builder (flow M): no AI, just a picker.
@@ -667,10 +693,18 @@ export default function StyleTab({
       {looks.length > 0 && (
         <>
           <div className="section-h">Saved looks ({looks.length})</div>
-          <div className="section-sub">
-            Suggestions you&rsquo;ve kept, showing current wardrobe photos.
+          <div className="saved-looks-head">
+            <div className="section-sub">
+              Suggestions you&rsquo;ve kept, showing current wardrobe photos.
+            </div>
+            <TileToggle
+              size={looksView}
+              onChange={setLooksView}
+              smallTitle="Compact - name, photos and styling notes only"
+              largeTitle="Full detail"
+            />
           </div>
-          <div className="results saved-looks">
+          <div className={`results saved-looks ${looksView === "compact" ? "compact" : ""}`}>
             {[...looks]
               .sort((a, b) => shuffleKey(a.id) - shuffleKey(b.id))
               .map((l) => (

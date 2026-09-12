@@ -1511,6 +1511,68 @@ header.top {
   }
 }
 
+/* Sits above the saved-looks grid: the "n saved" caption on one side, the
+   density toggle on the other. Its own class rather than reusing .toolbar -
+   that one's sized for a row of buttons/search, this is just two things
+   pushed to opposite ends. */
+.saved-looks-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.saved-looks-head .section-sub {
+  margin-bottom: 0;
+}
+
+/* Compact saved-looks view: scanning many looks at once (the pain point
+   this was built for - reviewing a few dozen saved outfits one at a time,
+   at full reasoning-and-all length, doesn't scale), so it trades "why" and
+   the per-item name captions for four narrower columns instead of two.
+   Styling notes stay - short and specific enough to still be worth reading
+   at a glance, unlike the full paragraph. */
+@media (min-width: 700px) {
+  .results.saved-looks.compact {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+.results.saved-looks.compact .outfit-card {
+  padding: 14px 16px;
+}
+
+.results.saved-looks.compact .outfit-head {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+}
+
+.results.saved-looks.compact .outfit-head h3 {
+  font-size: 1.05rem;
+}
+
+.results.saved-looks.compact .outfit-items {
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.results.saved-looks.compact .outfit-item,
+.results.saved-looks.compact .outfit-item .thumb.sq {
+  width: 64px;
+}
+
+.results.saved-looks.compact .oi-name,
+.results.saved-looks.compact .outfit-why {
+  display: none;
+}
+
+.results.saved-looks.compact .outfit-notes {
+  margin-top: 10px;
+}
+
 .stylist-note {
   font-family: var(--serif);
   font-style: italic;

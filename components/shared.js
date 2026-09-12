@@ -268,7 +268,16 @@ export function TagCloud({ options, counts, value, onChange }) {
 // grid-density switch on shopping sites. State lives in page.js (localStorage
 // key "stylist-tile-size") so both tabs, which stay mounted the whole
 // session, stay in sync with each other.
-export function TileToggle({ size, onChange }) {
+// Also reused by Style tab's saved-looks view (its own, separately-persisted
+// state - see looksView in StyleTab.js) - the icon pair still reads as
+// "denser vs. fuller", it's just what "denser" strips that differs, so the
+// tooltip text is the one thing that needs to change per caller.
+export function TileToggle({
+  size,
+  onChange,
+  smallTitle = "Small tiles, no text",
+  largeTitle = "Large tiles, with details",
+}) {
   return (
     <div className="tile-toggle">
       <button
@@ -276,7 +285,7 @@ export function TileToggle({ size, onChange }) {
         className={size === "compact" ? "on" : ""}
         onClick={() => onChange("compact")}
         aria-label="Small tiles"
-        title="Small tiles, no text"
+        title={smallTitle}
       >
         <svg viewBox="0 0 16 16" fill="none">
           <rect x="1" y="1" width="4" height="4" stroke="currentColor" />
@@ -295,7 +304,7 @@ export function TileToggle({ size, onChange }) {
         className={size === "large" ? "on" : ""}
         onClick={() => onChange("large")}
         aria-label="Large tiles"
-        title="Large tiles, with details"
+        title={largeTitle}
       >
         <svg viewBox="0 0 16 16" fill="none">
           <rect x="1" y="1" width="6.5" height="6.5" stroke="currentColor" />
