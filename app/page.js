@@ -483,7 +483,11 @@ export default function Home() {
     <div className="wrap">
       <header className="top">
         <div className="brand">
-          <h1 className="b-name">Personal Stylist</h1>
+          <h1 className="b-name-wrap">
+            <button type="button" className="b-name" onClick={() => setTab("style")}>
+              Personal Stylist
+            </button>
+          </h1>
           <span className="f-plus">+</span>
           <span className="b-divider" />
           <a

@@ -163,6 +163,10 @@ header.top {
   min-width: 0;
 }
 
+.b-name-wrap {
+  display: contents;
+}
+
 .b-name {
   font-family: var(--serif);
   font-style: italic;
@@ -171,6 +175,14 @@ header.top {
   letter-spacing: 0.01em;
   color: var(--ink);
   white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.b-name:hover {
+  opacity: 0.75;
 }
 
 .b-divider {
@@ -205,10 +217,15 @@ header.top {
   border-bottom: 1px solid transparent;
 }
 
-.top-nav button.active {
+/* Repeats the :not() clauses from the base rule above purely to match its
+   specificity - two :not(.class) clauses count as two classes, so a plain
+   ".top-nav button.active" (one class) was quietly losing every property
+   here to the base rule's transparent border and muted colour. Confirmed
+   this was never actually rendering before fixing it here. */
+.top-nav button.active:not(.theme-btn):not(.lock-btn) {
   color: var(--ink);
   font-weight: 600;
-  border-bottom-color: var(--ink);
+  border-bottom-color: var(--accent);
 }
 
 .top-nav .theme-btn {
@@ -549,7 +566,7 @@ header.top {
 }
 
 .comp-bar-label {
-  width: 84px;
+  width: 140px;
   flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;

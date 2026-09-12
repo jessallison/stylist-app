@@ -63,7 +63,7 @@ export default function CompositionChart({ items }) {
   const catSegments = catCounts.map(([label, count], i) => ({
     label,
     count,
-    pct: Math.round((count / total) * 1000) / 10,
+    pct: Math.round((count / total) * 100),
     colour: PALETTE[i % PALETTE.length],
   }));
 
