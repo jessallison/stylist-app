@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 export async function POST(request) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return Response.json({ error: "Wrong password" }, { status: 401 });
   }
   if (!hasBgRemoval()) {

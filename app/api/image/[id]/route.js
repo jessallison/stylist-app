@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request, { params }) {
   // Photos are the most personal thing here - gated like everything else.
   // The login cookie authenticates plain <img> requests.
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return new Response("Locked", { status: 401 });
   }
   const { id } = await params;
@@ -29,7 +29,7 @@ export async function GET(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return Response.json({ error: "Wrong password" }, { status: 401 });
   }
   const { id } = await params;

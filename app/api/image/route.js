@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 // Upload one image (client-side resized data URL). ~150KB after the client
 // compresses, well inside Upstash's request limit.
 export async function POST(request) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return Response.json({ error: "Wrong password" }, { status: 401 });
   }
   let body;

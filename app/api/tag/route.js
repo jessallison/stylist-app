@@ -18,7 +18,7 @@ const list = (a) => a.map((x) => `"${x}"`).join(", ");
 // kind "inspo" classifies an inspiration image (outfit / flat-lay / product)
 // and tags it. Suggestions only - the user approves or edits before saving.
 export async function POST(request) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return Response.json({ error: "Wrong password" }, { status: 401 });
   }
   if (!hasClaude()) {

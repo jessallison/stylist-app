@@ -218,7 +218,7 @@ function buildRandomOutfits({ pool, anchor, filters, hardExcludePairs, count = 3
 }
 
 export async function POST(request) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return Response.json({ error: "Wrong password" }, { status: 401 });
   }
 

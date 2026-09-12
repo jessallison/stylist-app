@@ -83,7 +83,7 @@ function extractImageUrl(html, baseUrl) {
 // image's address (right-click the photo on the pin, not the page) instead,
 // which comes in as a direct image link and works the same as any other.
 export async function POST(request) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return Response.json({ error: "Wrong password" }, { status: 401 });
   }
   let body;

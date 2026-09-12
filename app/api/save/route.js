@@ -3,7 +3,7 @@ import { setData, getData, checkAuth, DATA_KEYS } from "../../../lib/store";
 export const dynamic = "force-dynamic";
 
 export async function POST(request) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return Response.json({ error: "Wrong password" }, { status: 401 });
   }
   let body;

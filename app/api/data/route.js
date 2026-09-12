@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request) {
   // Viewing is password-gated too - see checkAuth in lib/store.js.
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return Response.json({ error: "Locked" }, { status: 401 });
   }
   try {

@@ -2,6 +2,9 @@ import {
   loginBlocked,
   recordLoginFailure,
   clearLoginFailures,
+  timingSafeStringEqual,
+  createSession,
+  destroySession,
 } from "../../../lib/store";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +36,18 @@ export async function POST(request) {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
 
   if (logout) {
+    // Best-effort: invalidate the session server-side too, not just clear
+    // the cookie, so a copy of it lying around elsewhere (browser history,
+    // a synced cookie jar) stops working the moment this tab logs out.
+    const cookie = request.headers.get("cookie") || "";
+    const m = cookie.match(/(?:^|;\s*)stylist-key=([^;]*)/);
+    if (m) {
+      try {
+        await destroySession(decodeURIComponent(m[1]));
+      } catch (e) {
+        console.error("auth: logout session cleanup failed", e);
+      }
+    }
     return new Response(JSON.stringify({ ok: true }), {
       headers: {
         "Content-Type": "application/json",
@@ -60,8 +75,12 @@ export async function POST(request) {
     }
   }
 
-  // No password configured (local dev): everything is open.
-  const ok = !pw || password === pw;
+  // No password configured (local dev): everything is open. Otherwise a
+  // timing-safe comparison - see timingSafeStringEqual in lib/store.js -
+  // since this is the one comparison actually reachable by an outside
+  // guess (checkAuth's cookie/header checks matter to a bad guess, but only
+  // after the guess is already sitting in a valid-looking request).
+  const ok = !pw || (typeof password === "string" && timingSafeStringEqual(password, pw));
 
   if (pw) {
     try {
@@ -74,8 +93,14 @@ export async function POST(request) {
 
   const headers = { "Content-Type": "application/json" };
   if (ok && pw) {
+    // The cookie carries a random session token, not the password itself -
+    // the password only ever travels in the login request body and the
+    // x-admin-key header (for the app's own fetch calls), never sitting
+    // around in a cookie jar where any script with DOM access could read
+    // it back out. See createSession() in lib/store.js.
+    const token = await createSession();
     headers["Set-Cookie"] = `stylist-key=${encodeURIComponent(
-      pw
+      token
     )}; HttpOnly; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
   }
   return new Response(JSON.stringify({ ok }), {
