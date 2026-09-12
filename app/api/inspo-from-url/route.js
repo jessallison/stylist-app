@@ -9,6 +9,7 @@ const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 const MAX_BYTES = 12_000_000; // raw fetch cap - the client resizes down from here same as any other upload
 const FETCH_TIMEOUT = 8000;
+const MAX_REDIRECTS = 5;
 
 // Blocks the obvious SSRF targets (localhost, private ranges, cloud
 // metadata). Not exhaustive - this endpoint is behind the same password as
@@ -33,20 +34,48 @@ function decodeEntities(s) {
     .replace(/&gt;/g, ">");
 }
 
+// redirect: "follow" (the obvious way to write this) would hand off the
+// blocklist check entirely to fetch() itself - the first URL gets checked
+// by the caller, but nothing stops a redirect from that URL landing on
+// 169.254.169.254 or localhost, since fetch just follows it without ever
+// asking isBlockedHost(). A pasted link that 302s internally is a
+// completely ordinary thing for a shortener or a CDN to do, so this can't
+// just be "don't allow redirects" either - each hop is fetched manually,
+// one at a time, and re-checked against the same blocklist as the original
+// URL before it's followed.
 async function fetchWithLimits(url, accept, referer) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-  try {
-    const headers = { "User-Agent": UA, Accept: accept };
-    if (referer) headers.Referer = referer;
-    return await fetch(url, {
-      signal: controller.signal,
-      redirect: "follow",
-      headers,
-    });
-  } finally {
-    clearTimeout(timer);
+  let currentUrl = url;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+    let res;
+    try {
+      const headers = { "User-Agent": UA, Accept: accept };
+      if (referer) headers.Referer = referer;
+      res = await fetch(currentUrl, {
+        signal: controller.signal,
+        redirect: "manual",
+        headers,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    const location = [301, 302, 303, 307, 308].includes(res.status)
+      ? res.headers.get("location")
+      : null;
+    if (!location) return res;
+    let nextUrl;
+    try {
+      nextUrl = new URL(location, currentUrl);
+    } catch {
+      return res; // unparseable Location - let the caller see the redirect response as-is
+    }
+    if (!["http:", "https:"].includes(nextUrl.protocol) || isBlockedHost(nextUrl.hostname)) {
+      throw new Error("Redirected to an unsupported address");
+    }
+    currentUrl = nextUrl.toString();
   }
+  throw new Error("Too many redirects");
 }
 
 // Looks for the same tag Pinterest/Twitter/iMessage read to unfurl a link
