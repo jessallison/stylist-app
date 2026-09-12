@@ -478,12 +478,25 @@ export async function uploadImage(adminKey, id, dataUrl) {
   return lastResult;
 }
 
-// Best-effort cleanup; failures are logged, never surfaced.
+// Best-effort cleanup; failures are logged, never surfaced. The comment
+// above used to promise logging this never actually did: fetch() only
+// rejects on a network failure, so a server-side failure (Redis down, a
+// stale session) resolved normally and the .catch() below never saw it -
+// the delete looked like it had happened when it hadn't, with nothing
+// anywhere to say so. That's how an item gets removed from the wardrobe/
+// inspo/looks list while its photo silently keeps sitting in storage:
+// checking res.ok won't retry or queue anything (still no test coverage
+// this app has for that), but it at least makes a failed cleanup visible
+// in the console instead of invisible.
 export function deleteImage(adminKey, id) {
   return fetch(`/api/image/${id}`, {
     method: "DELETE",
     headers: { "x-admin-key": adminKey || "" },
-  }).catch(() => {});
+  })
+    .then((res) => {
+      if (!res.ok) console.error(`deleteImage: server refused to delete ${id} (${res.status})`);
+    })
+    .catch((e) => console.error(`deleteImage: request failed for ${id}`, e));
 }
 
 // --- Duplicate detection ----------------------------------------------------
