@@ -1,0 +1,28 @@
+name: Build
+
+# Catches a broken build before it gets merged/pushed to main - this app has
+# no test suite, so a clean `next build` is the cheapest available signal
+# that a change didn't break something. Runs on every push and PR to main
+# and staging, the two branches actually used in this repo's workflow.
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          # The build touches env-gated integrations (Redis, Claude,
+          # remove.bg) only through feature checks, not at build time, so
+          # no secrets are needed here - this just proves the app compiles.
+          NODE_ENV: production
