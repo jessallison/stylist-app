@@ -519,7 +519,7 @@ export default function StyleTab({
       )}
 
       {flow !== "M" && (
-      <div className="flow-config">
+      <div className="flow-config action-panel">
         {/* filter-row narrows the three selects (globally they flex to fill
             their row, which is right for the single-select rows above but
             leaves no room here) so Style me and YOLO sit on the same line,

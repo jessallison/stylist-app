@@ -1374,6 +1374,26 @@ header.top {
   margin-bottom: 8px;
 }
 
+/* Frames the season/occasion/colour + Style me row as its own unit. Without
+   this it was a set of bare native selects sitting directly on the page
+   background, right after the bordered, high-contrast flow-row tabs above -
+   a sudden drop in visual weight exactly where the actual commit action
+   lives. Same border/background language as .card, deliberately no accent
+   colour - this isn't trying to be a callout, just a frame that stops the
+   row reading as an afterthought next to the fully-carded saved looks below.
+   Scoped to this one .flow-config instance (not the selector, not the
+   manual builder's) via the extra class - those don't have the same
+   problem and don't need the extra weight. */
+.flow-config.action-panel {
+  border: 1px solid var(--line);
+  background: var(--card);
+  padding: 16px 18px;
+}
+
+.flow-config.action-panel .row:last-child {
+  margin-bottom: 0;
+}
+
 .src-preview {
   margin: 6px 0 12px;
 }
