@@ -547,7 +547,12 @@ ${flowText}`;
     const outfits = (result.outfits || [])
       .map((o) => ({
         title: o.title || "Untitled look",
-        item_ids: (o.item_ids || []).filter((id) => validIds.has(id)),
+        // De-duped: the model has occasionally repeated an id (usually when
+        // it's unsure whether something counts as "layering" vs the base
+        // piece) - without this, the length >= 2 check below could pass on
+        // a single item listed twice, and it'd render as two identical
+        // thumbnails in one outfit.
+        item_ids: [...new Set((o.item_ids || []).filter((id) => validIds.has(id)))],
         formula: o.formula || "",
         why: o.why || "",
         styling_notes: o.styling_notes || "",

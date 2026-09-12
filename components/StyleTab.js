@@ -790,7 +790,10 @@ function OutfitCard({ o, byId, newThumb, actions, onDismissGap }) {
         {o.formula && <span className="badge formula">{o.formula}</span>}
       </div>
       <div className="outfit-items">
-        {o.item_ids.map((id) =>
+        {/* De-duped defensively at render time too, so a look saved before
+            the API-level fix (or anything hand-edited in storage) never
+            shows the same item twice. */}
+        {[...new Set(o.item_ids)].map((id) =>
           id === "NEW" ? (
             <div key={id} className="outfit-item">
               <Thumb
