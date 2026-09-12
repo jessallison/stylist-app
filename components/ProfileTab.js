@@ -27,6 +27,7 @@ export default function ProfileTab({
   save,
   setData,
   dataRef,
+  versionsRef,
   unlocked,
   needAuth,
   adminKey,
@@ -127,7 +128,7 @@ export default function ProfileTab({
   useEffect(() => {
     if (backfillRan.current) return;
     backfillRan.current = true;
-    backfillHashes("styleProfile", profile, setData, adminKey, dataRef);
+    backfillHashes("styleProfile", profile, setData, adminKey, dataRef, versionsRef);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -34,6 +34,7 @@ export default function InspoTab({
   save,
   setData,
   dataRef,
+  versionsRef,
   unlocked,
   needAuth,
   adminKey,
@@ -74,7 +75,7 @@ export default function InspoTab({
     if (migrationRan.current) return;
     migrationRan.current = true;
     (async () => {
-      await backfillHashes("inspo", inspo, setData, adminKey, dataRef);
+      await backfillHashes("inspo", inspo, setData, adminKey, dataRef, versionsRef);
       const current = dataRef.current?.inspo || inspo;
       if (!current.some((i) => i.season === "All year")) return;
       await save(

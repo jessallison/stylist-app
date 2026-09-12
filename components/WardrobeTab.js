@@ -88,6 +88,7 @@ export default function WardrobeTab({
   save,
   setData,
   dataRef,
+  versionsRef,
   unlocked,
   needAuth,
   adminKey,
@@ -151,7 +152,7 @@ export default function WardrobeTab({
     if (migrationRan.current) return;
     migrationRan.current = true;
     (async () => {
-      await backfillHashes("wardrobe", wardrobe, setData, adminKey, dataRef);
+      await backfillHashes("wardrobe", wardrobe, setData, adminKey, dataRef, versionsRef);
       const current = dataRef.current?.wardrobe || wardrobe;
       const needsCategory = current.some((w) => w.category === "Knitwear");
       const needsSeason = current.some((w) => w.season === "All year");

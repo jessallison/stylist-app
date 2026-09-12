@@ -542,7 +542,7 @@ export function groupDuplicates(items) {
 // is a ref page.js keeps in sync with live state on every render, so it's
 // read fresh here, right before the write, instead of trusting the snapshot
 // the backfill started with.
-export async function backfillHashes(type, items, setData, adminKey, dataRef) {
+export async function backfillHashes(type, items, setData, adminKey, dataRef, versionsRef) {
   const missing = items.filter((it) => it.photoId && !it.hash);
   if (!missing.length) return;
   const hashes = {};
@@ -569,11 +569,21 @@ export async function backfillHashes(type, items, setData, adminKey, dataRef) {
   if (dataRef) dataRef.current = { ...dataRef.current, [type]: next };
   setData((d) => ({ ...d, [type]: next }));
   try {
-    await fetch("/api/save", {
+    const res = await fetch("/api/save", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
-      body: JSON.stringify({ type, data: next }),
+      body: JSON.stringify({ type, data: next, version: versionsRef?.current?.[type] }),
     });
+    // Keep versionsRef in step with what actually landed, so the next real
+    // save() (through page.js) sends the right expected version instead of
+    // spuriously conflicting with this migration's own write - see setData()
+    // in lib/store.js.
+    if (res.ok && versionsRef) {
+      const j = await res.json().catch(() => ({}));
+      if (j.version !== undefined) {
+        versionsRef.current = { ...versionsRef.current, [type]: j.version };
+      }
+    }
   } catch {
     // Best-effort - the local hashes still landed, and this is picked up
     // again next load if the write itself didn't make it.

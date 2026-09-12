@@ -1,4 +1,4 @@
-import { setData, checkAuth, DATA_KEYS } from "../../../lib/store";
+import { setData, getData, checkAuth, DATA_KEYS } from "../../../lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export async function POST(request) {
       { status: 400 }
     );
   }
-  const { type, data } = body || {};
+  const { type, data, version } = body || {};
   const okShape =
     type === "settings" ? data && typeof data === "object" : Array.isArray(data);
   if (!DATA_KEYS.includes(type) || !okShape) {
@@ -30,7 +30,24 @@ export async function POST(request) {
     );
   }
   try {
-    await setData(type, data);
+    // `version` is the version the client last loaded for this type - see
+    // setData()'s own comment in lib/store.js for what this catches: a
+    // second tab/device that saved in between gets rejected here instead of
+    // silently overwritten.
+    const result = await setData(type, data, version);
+    if (!result.ok) {
+      const current = await getData(type);
+      return Response.json(
+        {
+          error: "This was changed elsewhere just now - showing the latest version, so try your change again",
+          conflict: true,
+          currentVersion: result.currentVersion,
+          current,
+        },
+        { status: 409 }
+      );
+    }
+    return Response.json({ ok: true, version: result.version });
   } catch (e) {
     console.error("save error", e);
     return Response.json(
@@ -38,5 +55,4 @@ export async function POST(request) {
       { status: 502 }
     );
   }
-  return Response.json({ ok: true });
 }

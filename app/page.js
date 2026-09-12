@@ -28,6 +28,12 @@ export default function Home() {
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
+  // The version each type was at when this tab last loaded or saved it -
+  // save() sends it along so the server can reject a write that would
+  // clobber a change made elsewhere since (a second tab, a second device,
+  // this same tab hours later after Jess edited it on her phone). See
+  // setData() in lib/store.js.
+  const versionsRef = useRef({});
   const [loadErr, setLoadErr] = useState(null);
   const [tab, setTab] = useState("style");
   const [adminKey, setAdminKey] = useState(null);
@@ -110,6 +116,7 @@ export default function Home() {
       if (!res.ok) throw new Error();
       const loaded = await res.json();
       dataRef.current = loaded;
+      versionsRef.current = loaded.versions || {};
       setData(loaded);
       setLocked(false);
     } catch {
@@ -239,7 +246,7 @@ export default function Home() {
           "Content-Type": "application/json",
           "x-admin-key": adminKey || "",
         },
-        body: JSON.stringify({ type, data: computed }),
+        body: JSON.stringify({ type, data: computed, version: versionsRef.current[type] }),
       });
     } catch {
       // Offline / connection dropped: roll back so the screen never shows
@@ -255,12 +262,32 @@ export default function Home() {
       setShowLogin(true);
       return false;
     }
+    if (res.status === 409) {
+      // Someone else (another tab, another device) saved this type since we
+      // last loaded it. Our change never went in - roll back to their
+      // version rather than the stale one we started from, so this tab
+      // doesn't turn around and clobber it on the very next save.
+      const j = await res.json().catch(() => ({}));
+      if (j.current !== undefined) {
+        dataRef.current = { ...dataRef.current, [type]: j.current };
+        setData(dataRef.current);
+      }
+      if (j.currentVersion !== undefined) {
+        versionsRef.current = { ...versionsRef.current, [type]: j.currentVersion };
+      }
+      flash(j.error || "This was changed elsewhere just now - try your change again");
+      return false;
+    }
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       dataRef.current = { ...dataRef.current, [type]: prev };
       setData(dataRef.current);
       flash(j.error || "Save failed - try again");
       return false;
+    }
+    const j = await res.json().catch(() => ({}));
+    if (j.version !== undefined) {
+      versionsRef.current = { ...versionsRef.current, [type]: j.version };
     }
     return true;
   }
@@ -443,6 +470,7 @@ export default function Home() {
     // through save() - see backfillHashes in shared.js for why.
     setData,
     dataRef,
+    versionsRef,
     unlocked,
     needAuth: () => setShowLogin(true),
     adminKey,
