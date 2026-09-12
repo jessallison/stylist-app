@@ -1243,6 +1243,25 @@ header.top {
   margin-bottom: 6px;
 }
 
+/* A field's hint paragraph (label -> .meta -> input/textarea, all inside one
+   wrapper div) had no space of its own before the control below it - only
+   the base .meta's line-height was doing that job visually, which read as
+   cramped. Scoped to .form so the (unrelated, wider-spaced) .meta captions
+   elsewhere - image notes, the display-mode Vocabulary/Regulars summary
+   lines - are untouched. */
+.form .field .meta {
+  line-height: 1.3;
+  margin-bottom: 10px;
+}
+
+/* Worn outfits is a photo wall like Wardrobe/Inspo and could reasonably
+   stay full-width, but sitting directly under the narrow (700px) Style
+   identity form made the page read as broken rather than intentional -
+   capping it to match is the smaller visual change of the two. */
+.worn-outfits-panel {
+  max-width: 700px;
+}
+
 .form .cols {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;

@@ -381,7 +381,7 @@ export default function ProfileTab({
               onChange={(e) => setIdForm({ ...idForm, vocab: e.target.value })}
             />
           </div>
-          <div>
+          <div className="field">
             <label>Confirmed regulars (one per line)</label>
             <div className="meta">
               Whole outfit formulas you already know work, not single pieces -
@@ -395,7 +395,7 @@ export default function ProfileTab({
               onChange={(e) => setIdForm({ ...idForm, regulars: e.target.value })}
             />
           </div>
-          <div>
+          <div className="field">
             <label>Home city</label>
             <div className="meta">
               For today&rsquo;s weather on the Style me tab - the season filter
@@ -424,6 +424,7 @@ export default function ProfileTab({
         </form>
       )}
 
+      <div className="worn-outfits-panel">
       <div className="section-h">Worn outfits</div>
       <div className="section-sub">
         Photos of looks that worked. &ldquo;Just me&rdquo; suggestions use these
@@ -503,6 +504,7 @@ export default function ProfileTab({
           {context === "all" ? "Log a worn outfit and it lands here." : "Nothing in this folder yet."}
         </div>
       )}
+      </div>
     </div>
   );
 }
