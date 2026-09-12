@@ -476,6 +476,8 @@ RULES:
 - 2 to 6 items per outfit; complete looks (shoes/outerwear when the wardrobe has suitable ones), accessories encouraged.
 - Never more than one pair of shoes, one bag, one pair of sunglasses, one belt, one hat or one pair of gloves in the same outfit.
 - Never two pairs of long trousers (jeans, trousers, wide-legs, joggers) in one outfit. Leggings under shorts is fine; jeans under trousers is not.
+- Watch proportion: if two of the outfit's pieces are both loose or voluminous (an oversized top or dress with wide-leg or baggy bottoms, two boxy layers), either say in "styling_notes" what defines the shape (tuck, belt, a fitted layer) or pick something slimmer instead - don't pair two loose pieces silently and assume it works. Their style can genuinely lean slouchy/relaxed (see THREE WORDS above), so this is a check to reason through, not a ban on volume.
+- "why" and "styling_notes" may only describe items that are actually in this outfit's "item_ids", by name. If finishing the look would need something they don't have on, that's a gap - put it in "gaps", never write as if an unselected piece (a layer, an underlayer, anything) is already part of the outfit.
 - Before returning an outfit, check it against the three words. If it doesn't honour at least two, fix it or drop it.
 - Where an outfit follows a CONFIRMED REGULAR, say which in "formula".
 - Gaps: if a look genuinely needs something they don't own, check the WANTED list first - if a wanted item fits, reference it by id ("you've already got your eye on this") instead of a generic suggestion. Only note real gaps, not nice-to-haves.
