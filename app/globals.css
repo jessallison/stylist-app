@@ -220,12 +220,12 @@ header.top {
 /* Repeats the :not() clauses from the base rule above purely to match its
    specificity - two :not(.class) clauses count as two classes, so a plain
    ".top-nav button.active" (one class) was quietly losing every property
-   here to the base rule's transparent border and muted colour. Confirmed
-   this was never actually rendering before fixing it here. */
+   here to the base rule's muted colour. Tried an accent-coloured underline
+   here too; dropped it, the ink colour + bold weight reads clearly enough
+   against the muted inactive tabs on its own. */
 .top-nav button.active:not(.theme-btn):not(.lock-btn) {
   color: var(--ink);
   font-weight: 600;
-  border-bottom-color: var(--accent);
 }
 
 .top-nav .theme-btn {
