@@ -81,6 +81,12 @@ const EMPTY_FORM = {
   // than a taste call the AI could plausibly learn from feedback over time.
   // Kept in sync both ways at save time - see submit() below.
   excludeWith: [],
+  // Dresses only: whether this one is actually cut to go over or under
+  // another dress (sheer, lace, a slip) - most aren't, so the suggestion
+  // engine defaults to "never pair two dresses" and only lifts that when
+  // one side of the pair is flagged here. Not guessed from name/tags - see
+  // validDressPairing in app/api/suggest/route.js.
+  layersOverDresses: false,
 };
 
 export default function WardrobeTab({
@@ -301,6 +307,7 @@ export default function WardrobeTab({
       heavyRotation: !!item.heavyRotation,
       notes: item.notes || "",
       excludeWith: item.excludeWith || [],
+      layersOverDresses: !!item.layersOverDresses,
     });
     setNewTag("");
     setExcludeSearch("");
@@ -348,6 +355,7 @@ export default function WardrobeTab({
       notes: form.notes.trim(),
       addedAt: original?.addedAt || Date.now(),
       excludeWith: form.excludeWith,
+      layersOverDresses: form.layersOverDresses,
     };
     const withItem = isNew
       ? [...wardrobe, item]
@@ -818,6 +826,20 @@ export default function WardrobeTab({
                 onChange={(e) => setForm({ ...form, heavyRotation: e.target.checked })}
               />
               I wear this a lot
+            </label>
+          </div>
+        )}
+        {form.category === "Dresses" && (
+          <div className="flag-row">
+            <label className="f-opt">
+              <input
+                type="checkbox"
+                checked={form.layersOverDresses}
+                onChange={(e) =>
+                  setForm({ ...form, layersOverDresses: e.target.checked })
+                }
+              />
+              Sheer/slip cut - can go over or under another dress
             </label>
           </div>
         )}

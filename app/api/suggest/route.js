@@ -19,6 +19,11 @@ function itemLine(w) {
     w.season,
     w.formality,
     ...(w.tags || []),
+    // Flagged per-item on the Wardrobe form, not guessed from name/tags -
+    // see validDressPairing below for the hard rule this backs.
+    w.category === "Dresses" && w.layersOverDresses
+      ? "can layer over/under another dress"
+      : null,
   ].filter(Boolean);
   return `- ${w.id}: ${w.name} [${bits.join(", ")}]${w.notes ? ` - ${w.notes}` : ""}`;
 }
@@ -344,6 +349,20 @@ export async function POST(request) {
   };
   const onePairOfLongPants = (o) => o.item_ids.filter(isLongPants).length <= 1;
 
+  // At most one dress per outfit unless at least one of them is specifically
+  // cut to layer over or under another (a sheer/lace overlay, a slip dress)
+  // - two structured dresses (two jumper dresses, say) can never both be
+  // worn at once regardless of what the model tries. layersOverDresses is a
+  // per-item flag set on the wardrobe item itself (Wardrobe tab), not a
+  // guess from the name/tags - whether a dress is actually cut to layer
+  // isn't reliably inferable from either.
+  const isDress = (id) => itemOf.get(id)?.category === "Dresses";
+  const canLayerDress = (id) => !!itemOf.get(id)?.layersOverDresses;
+  const validDressPairing = (o) => {
+    const dresses = o.item_ids.filter(isDress);
+    return dresses.length <= 1 || dresses.some(canLayerDress);
+  };
+
   // No ANTHROPIC_API_KEY configured - a fresh deployment before someone's
   // added a key, or one that never plans to. Flow A needs actual image
   // reasoning (matching a look's silhouette/colour logic), which has no
@@ -366,7 +385,8 @@ export async function POST(request) {
         ONE_PER_OUTFIT_CATEGORIES.every(
           (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
         ) &&
-        onePairOfLongPants(o)
+        onePairOfLongPants(o) &&
+        validDressPairing(o)
     );
     if (!randomOutfits.length) {
       return Response.json(
@@ -476,6 +496,7 @@ RULES:
 - 2 to 6 items per outfit; complete looks (shoes/outerwear when the wardrobe has suitable ones), accessories encouraged.
 - Never more than one pair of shoes, one bag, one pair of sunglasses, one belt, one hat or one pair of gloves in the same outfit.
 - Never two pairs of long trousers (jeans, trousers, wide-legs, joggers) in one outfit. Leggings under shorts is fine; jeans under trousers is not.
+- Never two dresses in one outfit unless at least one is tagged "can layer over/under another dress" in the wardrobe list - most dresses (a jumper dress, a shirt dress) can never both be worn at once, only a sheer/lace/slip cut is actually built to go over or under one.
 - Watch proportion: if two of the outfit's pieces are both loose or voluminous (an oversized top or dress with wide-leg or baggy bottoms, two boxy layers), either say in "styling_notes" what defines the shape (tuck, belt, a fitted layer) or pick something slimmer instead - don't pair two loose pieces silently and assume it works. Their style can genuinely lean slouchy/relaxed (see THREE WORDS above), so this is a check to reason through, not a ban on volume.
 - "why" and "styling_notes" may only describe items that are actually in this outfit's "item_ids", by name. If finishing the look would need something they don't have on, that's a gap - put it in "gaps", never write as if an unselected piece (a layer, an underlayer, anything) is already part of the outfit.
 - Before returning an outfit, check it against the three words. If it doesn't honour at least two, fix it or drop it.
@@ -579,7 +600,8 @@ ${flowText}`;
           ONE_PER_OUTFIT_CATEGORIES.every(
             (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
           ) &&
-          onePairOfLongPants(o)
+          onePairOfLongPants(o) &&
+          validDressPairing(o)
       );
 
     if (!outfits.length) {
