@@ -330,7 +330,11 @@ export async function POST(request) {
   // category with bracelets/necklaces, which SHOULD be allowed to stack -
   // splitting that out needs its own subfield, not just a category, so
   // it's parked in IDEAS.md rather than guessed at with name-matching.
-  const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts", "Hats", "Gloves"];
+  // Skirts is here too - never two skirts at once - but a skirt WITH
+  // trousers, or a skirt with a dress, is fine (a slip skirt over wide-legs,
+  // say), so this only ever caps the Skirts count, it doesn't touch pairing
+  // across categories the way validDressPairing below does for dresses.
+  const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts", "Hats", "Gloves", "Skirts"];
 
   // At most one pair of long trousers per outfit. Leggings under shorts is
   // a look; jeans under wide-legs is not. Bottoms is a single category, so
@@ -494,7 +498,7 @@ ${identityText(settings)}
 RULES:
 - item_ids may only contain ids from the OWNED WARDROBE list${anchor ? ` (plus the anchor ${anchor.id})` : ""}${flow === "C" && !anchor ? ` (plus "NEW" for the just-bought anchor)` : ""}.
 - 2 to 6 items per outfit; complete looks (shoes/outerwear when the wardrobe has suitable ones), accessories encouraged.
-- Never more than one pair of shoes, one bag, one pair of sunglasses, one belt, one hat or one pair of gloves in the same outfit.
+- Never more than one pair of shoes, one bag, one pair of sunglasses, one belt, one hat, one pair of gloves or one skirt in the same outfit. A skirt paired with trousers or with a dress is fine - it's only ever two skirts together that's wrong.
 - Never two pairs of long trousers (jeans, trousers, wide-legs, joggers) in one outfit. Leggings under shorts is fine; jeans under trousers is not.
 - Never two dresses in one outfit unless at least one is tagged "can layer over/under another dress" in the wardrobe list - most dresses (a jumper dress, a shirt dress) can never both be worn at once, only a sheer/lace/slip cut is actually built to go over or under one.
 - Watch proportion: if two of the outfit's pieces are both loose or voluminous (an oversized top or dress with wide-leg or baggy bottoms, two boxy layers), either say in "styling_notes" what defines the shape (tuck, belt, a fitted layer) or pick something slimmer instead - don't pair two loose pieces silently and assume it works. Their style can genuinely lean slouchy/relaxed (see THREE WORDS above), so this is a check to reason through, not a ban on volume.
