@@ -13,17 +13,21 @@
   --alert: #96502b;
   --alert-soft: #f3e7dc;
   --accent: #a9bc2e;
+  --accent-ink: #141210;
   --serif: var(--font-display), Georgia, "Times New Roman", serif;
 }
 
 /* Dark mode: same warm, ink-on-paper character inverted, not a cold
-   blue-black. --accent stays the same value in both themes - it's paired
-   with --ink as foreground text (.chip.sel, .btn.ghost.has-filters), which
-   already flips, so the contrast holds without a second value. --alert and
-   --alert-soft don't have that luxury (--alert is used directly as text on
-   the page background, not paired with a flipping variable), so they get
-   their own dark values, brightened/darkened to keep the same
-   text-on-wash contrast relationship.
+   blue-black. --accent stays the same value in both themes, and so does
+   --accent-ink - text sitting on the accent chip/pill background (.chip.sel,
+   .btn.ghost.has-filters, .tile-toggle button.on, .dupes-btn.on) is always
+   this fixed dark colour, never --ink, because --ink itself flips to a
+   near-white in dark mode and near-white text on this lime-green would be
+   nearly unreadable (was literally --ink until Sep 2026 - a light-on-lime
+   contrast bug in dark mode only). --alert and --alert-soft don't have that
+   luxury (--alert is used directly as text on the page background, not
+   paired with a flipping variable), so they get their own dark values,
+   brightened/darkened to keep the same text-on-wash contrast relationship.
    Applied two ways: the @media block is what a first paint sees before
    the toggle's own effect (in page.js) has run, so it follows the OS
    preference until then; :root[data-theme] is what the toggle itself sets,
@@ -303,7 +307,7 @@ header.top {
 .chip.sel {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--ink);
+  color: var(--accent-ink);
   font-weight: 600;
 }
 
@@ -361,7 +365,7 @@ header.top {
 .btn.ghost.has-filters {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--ink);
+  color: var(--accent-ink);
   font-weight: 600;
 }
 
@@ -847,7 +851,7 @@ header.top {
 
 .tile-toggle button.on {
   background: var(--accent);
-  color: var(--ink);
+  color: var(--accent-ink);
 }
 
 .tile-toggle svg {
@@ -876,7 +880,7 @@ header.top {
 
 .dupes-btn.on {
   background: var(--accent);
-  color: var(--ink);
+  color: var(--accent-ink);
   border-color: var(--accent);
 }
 
