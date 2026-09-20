@@ -2332,15 +2332,19 @@ header.top {
   }
 }
 
-/* Below ~480px (iPhone-width phones) the four tabs + Dark + Lock no longer
-   fit even on their own full-width row, so they wrap - tighten padding,
-   letter-spacing and the icon-button margins enough to keep it to one line.
-   This overrides the >480px wrap-accommodation rules above, since nothing
-   wraps here for them to accommodate. */
+/* Below ~480px (iPhone-width phones), tighten padding/letter-spacing enough
+   that the four tabs + Dark + Lock usually fit their own full-width row.
+   forced nowrap here used to be paired with this same tightening, on the
+   assumption it was always enough to make one line fit - it wasn't: at
+   360px (the most common Android width) and 320px (iPhone SE), the row
+   still needed 20-60px more than it had, and nowrap turned that shortfall
+   into the Lock button running off the right edge of the screen instead of
+   the harmless two-row wrap every other size gets. Letting it wrap here
+   too, same as the >480px tier above, means a too-narrow phone just gets
+   an extra row instead of an unreachable button. */
 @media (max-width: 480px) {
   .top-nav {
     gap: 0;
-    flex-wrap: nowrap;
   }
   .top-nav button:not(.theme-btn):not(.lock-btn) {
     padding: 8px 7px;
@@ -2348,11 +2352,15 @@ header.top {
     letter-spacing: 0.06em;
     white-space: nowrap;
   }
+  /* Same "push Dark/Lock to the far right of whichever row they land on"
+     treatment as the >480px tier - without it, on a wrap they'd sit right
+     after the last tab at only a few px gap, reading as part of the tab
+     group instead of a separate control pair. */
   .top-nav .theme-btn {
-    margin-left: 4px;
+    margin-left: auto;
   }
   .top-nav .lock-btn {
-    margin-left: 4px;
+    margin-left: 6px;
   }
   .lock-btn {
     padding: 7px 8px;
