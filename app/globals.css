@@ -138,7 +138,6 @@ a {
 .chip,
 .lock-btn,
 .top-nav button:not(.theme-btn),
-.sort-wrap label,
 .form label,
 .oi-name,
 .f-powered {
@@ -634,26 +633,6 @@ header.top {
 .toolbar input {
   flex: 1 1 180px;
   min-width: 130px;
-}
-
-.sort-wrap {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sort-wrap label {
-  font-size: 0.6rem;
-  font-weight: 500;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.sort-wrap select {
-  width: auto;
-  font-size: 0.82rem;
-  padding: 8px 10px;
 }
 
 .count {
@@ -1887,13 +1866,6 @@ header.top {
 }
 
 /* --- Profile tab ------------------------------------------------------------ */
-
-.identity-card {
-  max-width: 700px;
-  display: flex;
-  flex-direction: column;
-  padding: 24px;
-}
 
 /* --- Profile masthead: the three words as a magazine spread, with a
    four-up snapshot grid standing in for the old single hero photo - the
