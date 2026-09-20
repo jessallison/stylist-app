@@ -665,7 +665,7 @@ export default function ProfileTab({
             .sort((a, b) => b.addedAt - a.addedAt)
             .map((p) => (
               <div key={p.id} className="card item-card">
-                <Thumb photoId={p.photoId} className="thumb tall" />
+                <Thumb photoId={p.photoId} className="thumb tall no-crop" />
                 <div className="card-body">
                   {(p.item_ids || []).length > 0 && (
                     <div className="oi-name">

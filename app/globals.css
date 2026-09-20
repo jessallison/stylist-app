@@ -1061,6 +1061,16 @@ header.top {
   aspect-ratio: 3 / 4;
 }
 
+/* Worn outfits only (not Inspo, which also uses .thumb.tall) - a mirror
+   selfie of a full outfit is exactly the case where cropping to fill a
+   fixed box cuts off the shoes or the hem, defeating the point of logging
+   what you actually wore. Letterboxed against the same --tile background
+   the empty-state placeholder uses, so the box size/grid stays identical -
+   only how the photo fills it changes. */
+.thumb.no-crop {
+  object-fit: contain;
+}
+
 .thumb.sq {
   aspect-ratio: 3 / 4;
   width: 96px;
