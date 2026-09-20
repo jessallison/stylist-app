@@ -239,19 +239,31 @@ const MULTI_LETTER_COLOURS = [
 // A swatch value is either a plain hex string (applied as text colour) or
 // the "Multi / print" gradient marker, rendered instead as rainbow letters.
 // Returns plain `label` when there's no swatch to apply.
+// Colour goes on via a --swatch-color custom property + the .swatch-text
+// class (see globals.css) rather than a plain inline `color`, on purpose:
+// COLOUR_TEXT_HEX is tuned for a light background only, so both callers
+// (FilterGroup's filter-panel checklist, ChipPick's form colour picker)
+// need a dark-mode escape hatch, and a stylesheet rule can't cleanly beat
+// an inline `style.color` without !important. Going through a custom
+// property lets a plain, unremarkable dark-mode selector win instead.
 function swatchLabel(label, swatch) {
   if (!swatch) return label;
   if (swatch.startsWith("linear-gradient")) {
     return label.split("").map((ch, i) => (
       <span
         key={i}
-        style={{ color: MULTI_LETTER_COLOURS[i % MULTI_LETTER_COLOURS.length] }}
+        className="swatch-text"
+        style={{ "--swatch-color": MULTI_LETTER_COLOURS[i % MULTI_LETTER_COLOURS.length] }}
       >
         {ch}
       </span>
     ));
   }
-  return <span style={{ color: swatch }}>{label}</span>;
+  return (
+    <span className="swatch-text" style={{ "--swatch-color": swatch }}>
+      {label}
+    </span>
+  );
 }
 
 // Chip-set picker (single or multi select). `swatches` is an optional

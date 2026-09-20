@@ -322,6 +322,28 @@ header.top {
   padding: 6px 10px;
 }
 
+/* See swatchLabel in shared.js - carries the COLOUR_TEXT_HEX tint via this
+   custom property instead of a plain inline colour, so dark mode can
+   override it below without an !important fight. */
+.swatch-text {
+  color: var(--swatch-color);
+}
+
+/* ChipPick's colour picker sits in a full-height wardrobe/inspo form, not
+   a compact popover, so pinning it to light mode (like .filter-panel
+   below) would read as a stray light island mid-form. Simpler fix here:
+   drop the colour tint in dark mode and fall back to plain ink - the
+   swatch was only ever a legibility aid, not the point of the control. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .chip-pick .swatch-text {
+    color: var(--ink);
+  }
+}
+
+:root[data-theme="dark"] .chip-pick .swatch-text {
+  color: var(--ink);
+}
+
 .tag-cloud {
   display: flex;
   flex-wrap: wrap;
@@ -646,6 +668,32 @@ header.top {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 20px 24px;
+}
+
+/* Pinned to light mode even when the page is dark. The colour-swatch text
+   in FilterGroup (see swatchLabel in shared.js) uses the COLOUR_TEXT_HEX
+   palette, hand-tuned for a light background only - flipping this panel's
+   own bg/ink/muted/line to their dark values would make "Black" invisible
+   and "White"/"Grey" nearly so. This is a compact popover-style surface
+   (unlike ChipPick's full-height form, see .chip-pick .swatch-text above),
+   so pinning the whole thing back to light reads as a deliberate card
+   rather than a layout glitch, and is simpler than a second dark palette. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .filter-panel {
+    --bg: #ffffff;
+    --card: #ffffff;
+    --ink: #141210;
+    --muted: #6f6a60;
+    --line: #e5e4e0;
+  }
+}
+
+:root[data-theme="dark"] .filter-panel {
+  --bg: #ffffff;
+  --card: #ffffff;
+  --ink: #141210;
+  --muted: #6f6a60;
+  --line: #e5e4e0;
 }
 
 .f-group-title {
