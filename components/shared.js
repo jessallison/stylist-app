@@ -19,6 +19,27 @@ export function toggleIn(set, value, setter) {
   setter(next);
 }
 
+// Season/formality/colour facets for an outfit defined by item_ids (a saved
+// look or worn outfit) - "any of its pieces" union, the same semantics a
+// single item's own colours array already uses in the wardrobe filters.
+// Lets Saved looks and Worn outfits share one Filters implementation even
+// though neither stores season/occasion/colour of its own - it's derived
+// fresh from whatever's currently linked, so relinking or re-tagging a
+// piece updates every outfit's filters automatically. A "NEW" placeholder
+// id (an anchor piece not yet catalogued) and any id no longer in the
+// wardrobe are silently skipped rather than counted as a facet of their own.
+export function outfitFacets(itemIds, byId) {
+  const items = (itemIds || [])
+    .filter((id) => id !== "NEW")
+    .map((id) => byId[id])
+    .filter(Boolean);
+  return {
+    seasons: new Set(items.map((w) => w.season).filter(Boolean)),
+    formality: new Set(items.map((w) => w.formality).filter(Boolean)),
+    colours: new Set(items.flatMap((w) => w.colours || [])),
+  };
+}
+
 // HEIC/HEIF (iPhone's native photo format when "Most Compatible" isn't
 // turned on, or anything pulled from the Files app rather than the photo
 // picker) can't be decoded by <img> in any browser - it just fires onerror.

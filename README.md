@@ -90,10 +90,19 @@ included in that JSON).
   step at upload - anything not already catalogued gets filed as a name-only
   wardrobe stub on the spot (no photo; that comes later from the Wardrobe
   tab) rather than blocking the log. Replaced a hand-picked Cold/Warm/Fancy
-  tag (Sep 2026) so the same season/occasion/colour data on wardrobe items
-  can drive filtering here too, instead of a separate three-bucket scheme.
+  tag (Sep 2026) so the same season/formality/colour data on wardrobe items
+  can drive a proper Filters panel here too (see below), instead of a
+  separate three-bucket scheme.
 - Saved looks: any suggestion can be kept ("Save this look") - stored as item
   references plus the stylist's reasoning, listed on the Style me tab.
+- Worn outfits and Saved looks both get a Filters panel (Season, Formality,
+  Colour - the wardrobe/tags-style checkbox pattern, not a dropdown),
+  computed live from each entry's linked `item_ids` rather than stored on
+  the entry itself (`outfitFacets` in `components/shared.js`) - relinking or
+  re-tagging a piece updates every outfit's filters automatically. Formality
+  stands in for "occasion": it's the only comparable field wardrobe items
+  actually carry, whereas "occasion" elsewhere in the app is a one-off input
+  to the AI at generation time, not a per-item attribute.
 - Home city (optional, set on the Profile tab under the style identity):
   Style me then shows today's weather in one line, pre-sets the season
   filter from the day's high (17° and under is cold, 24° and over is warm,

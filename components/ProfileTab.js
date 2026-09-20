@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { geocodeCity } from "../lib/weather";
+import { SEASONS, FORMALITY, COLOURS, COLOUR_TEXT_HEX } from "../lib/style-identity";
 import {
   newId,
   PhotoButton,
@@ -16,6 +17,9 @@ import {
   backfillHashes,
   DuplicatesPanel,
   DupesToggle,
+  FilterGroup,
+  toggleIn,
+  outfitFacets,
 } from "./shared";
 
 // Style profile: worn-outfit photos, each linked to the real wardrobe pieces
@@ -106,6 +110,14 @@ export default function ProfileTab({
   // when there's nothing pending.
   const [pendingWorn, setPendingWorn] = useState(null);
   const [busy, setBusy] = useState(0);
+  // Worn-outfits Filters panel - same season/formality/colour facets Saved
+  // looks uses (see outfitFacets in shared.js), derived from each entry's
+  // item_ids rather than stored directly, so relinking or re-tagging a
+  // piece updates the filters automatically.
+  const [showWornFilters, setShowWornFilters] = useState(false);
+  const [wornSeas, setWornSeas] = useState(new Set());
+  const [wornForm, setWornForm] = useState(new Set());
+  const [wornCols, setWornCols] = useState(new Set());
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [idForm, setIdForm] = useState(null);
   const [savingIdentity, setSavingIdentity] = useState(false);
@@ -130,6 +142,28 @@ export default function ProfileTab({
   }, []);
 
   const dupGroups = groupDuplicates(profile);
+
+  const wornFacets = Object.fromEntries(
+    profile.map((p) => [p.id, outfitFacets(p.item_ids, byId)])
+  );
+  function wornPasses(p, skip) {
+    const f = wornFacets[p.id];
+    if (skip !== "sea" && wornSeas.size && ![...wornSeas].some((v) => f.seasons.has(v)))
+      return false;
+    if (skip !== "form" && wornForm.size && ![...wornForm].some((v) => f.formality.has(v)))
+      return false;
+    if (skip !== "col" && wornCols.size && ![...wornCols].some((v) => f.colours.has(v)))
+      return false;
+    return true;
+  }
+  const wornCountsFor = (group, values, has, selected) => {
+    const pool = profile.filter((p) => wornPasses(p, group));
+    return values
+      .map((v) => [v, v, pool.filter((p) => has(wornFacets[p.id], v)).length])
+      .filter(([v, , count]) => count > 0 || selected.has(v));
+  };
+  const activeWornFilterCount = wornSeas.size + wornForm.size + wornCols.size;
+  const filteredProfile = profile.filter((p) => wornPasses(p, null));
 
   function requireUnlock() {
     if (!unlocked) {
@@ -505,7 +539,11 @@ export default function ProfileTab({
       )}
 
       <div className="worn-outfits-panel">
-      <div className="section-h">Worn outfits</div>
+      <div className="section-h">
+        Worn outfits (
+        {activeWornFilterCount ? `${filteredProfile.length} of ${profile.length}` : profile.length}
+        )
+      </div>
       <div className="section-sub">
         Photos of looks that worked, linked to the real pieces you wore.
         &ldquo;Just me&rdquo; suggestions use these as grounding.
@@ -517,6 +555,26 @@ export default function ProfileTab({
           onPhoto={addPhoto}
           onError={flash}
         />
+        <button
+          type="button"
+          className={`btn ghost ${activeWornFilterCount ? "has-filters" : ""}`}
+          onClick={() => setShowWornFilters(!showWornFilters)}
+        >
+          Filters{activeWornFilterCount ? ` (${activeWornFilterCount})` : ""}
+        </button>
+        {activeWornFilterCount > 0 && (
+          <button
+            type="button"
+            className="chip"
+            onClick={() => {
+              setWornSeas(new Set());
+              setWornForm(new Set());
+              setWornCols(new Set());
+            }}
+          >
+            Clear filters
+          </button>
+        )}
         <DupesToggle
           count={dupGroups.length}
           open={showDuplicates}
@@ -529,6 +587,30 @@ export default function ProfileTab({
           </button>
         )}
       </div>
+
+      {showWornFilters && (
+        <div className="filter-panel">
+          <FilterGroup
+            title="Season"
+            options={wornCountsFor("sea", SEASONS, (f, v) => f.seasons.has(v), wornSeas)}
+            selected={wornSeas}
+            onToggle={(v) => toggleIn(wornSeas, v, setWornSeas)}
+          />
+          <FilterGroup
+            title="Formality"
+            options={wornCountsFor("form", FORMALITY, (f, v) => f.formality.has(v), wornForm)}
+            selected={wornForm}
+            onToggle={(v) => toggleIn(wornForm, v, setWornForm)}
+          />
+          <FilterGroup
+            title="Colour"
+            options={wornCountsFor("col", COLOURS, (f, v) => f.colours.has(v), wornCols)}
+            selected={wornCols}
+            onToggle={(v) => toggleIn(wornCols, v, setWornCols)}
+            swatches={COLOUR_TEXT_HEX}
+          />
+        </div>
+      )}
 
       {pendingWorn && (
         <div className="flow-config">
@@ -572,27 +654,31 @@ export default function ProfileTab({
           onRemove={remove}
         />
       )}
-      <div className={`grid ${tileSize === "compact" ? "compact" : ""}`}>
-        {profile
-          .sort((a, b) => b.addedAt - a.addedAt)
-          .map((p) => (
-            <div key={p.id} className="card item-card">
-              <Thumb photoId={p.photoId} className="thumb tall" />
-              <div className="card-body">
-                {(p.item_ids || []).length > 0 && (
-                  <div className="oi-name">
-                    {p.item_ids.map((id) => byId[id]?.name).filter(Boolean).join(" · ")}
+      {profile.length > 0 && filteredProfile.length === 0 ? (
+        <div className="empty">No worn outfits match these filters.</div>
+      ) : (
+        <div className={`grid ${tileSize === "compact" ? "compact" : ""}`}>
+          {filteredProfile
+            .sort((a, b) => b.addedAt - a.addedAt)
+            .map((p) => (
+              <div key={p.id} className="card item-card">
+                <Thumb photoId={p.photoId} className="thumb tall" />
+                <div className="card-body">
+                  {(p.item_ids || []).length > 0 && (
+                    <div className="oi-name">
+                      {p.item_ids.map((id) => byId[id]?.name).filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                  <div className="card-actions">
+                    <button className="chip" onClick={() => remove(p)}>
+                      Remove
+                    </button>
                   </div>
-                )}
-                <div className="card-actions">
-                  <button className="chip" onClick={() => remove(p)}>
-                    Remove
-                  </button>
                 </div>
               </div>
-            </div>
-          ))}
-      </div>
+            ))}
+        </div>
+      )}
       {profile.length === 0 && (
         <div className="empty">Log a worn outfit and it lands here.</div>
       )}

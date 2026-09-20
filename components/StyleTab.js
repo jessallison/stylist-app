@@ -1,8 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SEASONS, OCCASIONS, COLOURS, CATEGORIES } from "../lib/style-identity";
-import { newId, norm, PhotoButton, Thumb, TileToggle, uploadImage, deleteImage } from "./shared";
+import { SEASONS, OCCASIONS, COLOURS, CATEGORIES, FORMALITY, COLOUR_TEXT_HEX } from "../lib/style-identity";
+import {
+  newId,
+  norm,
+  PhotoButton,
+  Thumb,
+  TileToggle,
+  uploadImage,
+  deleteImage,
+  FilterGroup,
+  toggleIn,
+  outfitFacets,
+} from "./shared";
 import { fetchToday, seasonFromWeather, summarise } from "../lib/weather";
 
 // The three AI entry flows of the suggestion engine, plus one manual one:
@@ -138,6 +149,18 @@ export default function StyleTab({
   // the only thing that reads it, so it's local state, not lifted to page.js
   // - but still persisted, the same way, since a 29-look review session is
   // exactly the kind of thing a reload shouldn't reset.
+  // Saved-looks Filters panel - same season/formality/colour facets a worn
+  // outfit uses (see outfitFacets in shared.js), since a saved look is the
+  // same item_ids shape and neither stores these directly. "Formality" is
+  // the stand-in for the "occasion" Jess originally asked for - it's the
+  // only comparable field wardrobe items actually carry; the AI's own
+  // "occasion" filter (above) is a generation-time input, not a per-item
+  // attribute, so it can't be derived after the fact from item_ids alone.
+  const [showLookFilters, setShowLookFilters] = useState(false);
+  const [lookSeas, setLookSeas] = useState(new Set());
+  const [lookForm, setLookForm] = useState(new Set());
+  const [lookCols, setLookCols] = useState(new Set());
+
   const [looksView, setLooksViewState] = useState("large");
   useEffect(() => {
     try {
@@ -419,6 +442,28 @@ export default function StyleTab({
 
   const looks = data.looks || [];
 
+  const lookFacets = Object.fromEntries(
+    looks.map((l) => [l.id, outfitFacets(l.item_ids, byId)])
+  );
+  function lookPasses(l, skip) {
+    const f = lookFacets[l.id];
+    if (skip !== "sea" && lookSeas.size && ![...lookSeas].some((v) => f.seasons.has(v)))
+      return false;
+    if (skip !== "form" && lookForm.size && ![...lookForm].some((v) => f.formality.has(v)))
+      return false;
+    if (skip !== "col" && lookCols.size && ![...lookCols].some((v) => f.colours.has(v)))
+      return false;
+    return true;
+  }
+  const lookCountsFor = (group, values, has, selected) => {
+    const pool = looks.filter((l) => lookPasses(l, group));
+    return values
+      .map((v) => [v, v, pool.filter((l) => has(lookFacets[l.id], v)).length])
+      .filter(([v, , count]) => count > 0 || selected.has(v));
+  };
+  const activeLookFilterCount = lookSeas.size + lookForm.size + lookCols.size;
+  const filteredLooks = looks.filter((l) => lookPasses(l, null));
+
   const flowBtn = (id, label, sub) => (
     <button
       className={`flow-btn ${flow === id ? "on" : ""}`}
@@ -673,7 +718,11 @@ export default function StyleTab({
 
       {looks.length > 0 && (
         <>
-          <div className="section-h">Saved looks ({looks.length})</div>
+          <div className="section-h">
+            Saved looks (
+            {activeLookFilterCount ? `${filteredLooks.length} of ${looks.length}` : looks.length}
+            )
+          </div>
           <div className="saved-looks-head">
             <div className="section-sub">
               Suggestions you&rsquo;ve kept, showing current wardrobe photos.
@@ -685,29 +734,78 @@ export default function StyleTab({
               largeTitle="Full detail"
             />
           </div>
-          <div className={`results saved-looks ${looksView === "compact" ? "compact" : ""}`}>
-            {[...looks]
-              .sort((a, b) => shuffleKey(a.id) - shuffleKey(b.id))
-              .map((l) => (
-                <OutfitCard
-                  key={l.id}
-                  o={l}
-                  byId={byId}
-                  newThumb={{ photoId: l.anchorPhotoId }}
-                  onDismissGap={(gapIndex) => dismissGap(l.id, gapIndex)}
-                  actions={
-                    <>
-                      <button className="chip" onClick={() => renameLook(l)}>
-                        Rename
-                      </button>
-                      <button className="chip" onClick={() => removeLook(l)}>
-                        Remove
-                      </button>
-                    </>
-                  }
-                />
-              ))}
+          <div className="toolbar">
+            <button
+              type="button"
+              className={`btn ghost ${activeLookFilterCount ? "has-filters" : ""}`}
+              onClick={() => setShowLookFilters(!showLookFilters)}
+            >
+              Filters{activeLookFilterCount ? ` (${activeLookFilterCount})` : ""}
+            </button>
+            {activeLookFilterCount > 0 && (
+              <button
+                type="button"
+                className="chip"
+                onClick={() => {
+                  setLookSeas(new Set());
+                  setLookForm(new Set());
+                  setLookCols(new Set());
+                }}
+              >
+                Clear filters
+              </button>
+            )}
           </div>
+          {showLookFilters && (
+            <div className="filter-panel">
+              <FilterGroup
+                title="Season"
+                options={lookCountsFor("sea", SEASONS, (f, v) => f.seasons.has(v), lookSeas)}
+                selected={lookSeas}
+                onToggle={(v) => toggleIn(lookSeas, v, setLookSeas)}
+              />
+              <FilterGroup
+                title="Formality"
+                options={lookCountsFor("form", FORMALITY, (f, v) => f.formality.has(v), lookForm)}
+                selected={lookForm}
+                onToggle={(v) => toggleIn(lookForm, v, setLookForm)}
+              />
+              <FilterGroup
+                title="Colour"
+                options={lookCountsFor("col", COLOURS, (f, v) => f.colours.has(v), lookCols)}
+                selected={lookCols}
+                onToggle={(v) => toggleIn(lookCols, v, setLookCols)}
+                swatches={COLOUR_TEXT_HEX}
+              />
+            </div>
+          )}
+          {filteredLooks.length === 0 ? (
+            <div className="empty">No saved looks match these filters.</div>
+          ) : (
+            <div className={`results saved-looks ${looksView === "compact" ? "compact" : ""}`}>
+              {[...filteredLooks]
+                .sort((a, b) => shuffleKey(a.id) - shuffleKey(b.id))
+                .map((l) => (
+                  <OutfitCard
+                    key={l.id}
+                    o={l}
+                    byId={byId}
+                    newThumb={{ photoId: l.anchorPhotoId }}
+                    onDismissGap={(gapIndex) => dismissGap(l.id, gapIndex)}
+                    actions={
+                      <>
+                        <button className="chip" onClick={() => renameLook(l)}>
+                          Rename
+                        </button>
+                        <button className="chip" onClick={() => removeLook(l)}>
+                          Remove
+                        </button>
+                      </>
+                    }
+                  />
+                ))}
+            </div>
+          )}
         </>
       )}
     </div>
