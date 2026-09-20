@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { PROFILE_CONTEXTS } from "../lib/style-identity";
 import { geocodeCity } from "../lib/weather";
 import {
   newId,
@@ -9,6 +8,7 @@ import {
   Thumb,
   TileToggle,
   TagCloud,
+  ItemPicker,
   uploadImage,
   deleteImage,
   hashDataUrl,
@@ -18,9 +18,15 @@ import {
   DupesToggle,
 } from "./shared";
 
-// Style profile: worn-outfit photos in three groupings (Cold weather / Warm
-// weather / Fancy - PROFILE_CONTEXTS), plus the editable style identity
-// (three words, vocabulary, regulars, home city for today's weather).
+// Style profile: worn-outfit photos, each linked to the real wardrobe pieces
+// worn in it (item_ids - same shape a saved look uses), plus the editable
+// style identity (three words, vocabulary, regulars, home city for today's
+// weather). Until Sep 2026 these were tagged with a coarse, hand-picked
+// Cold/Warm/Fancy bucket instead (PROFILE_CONTEXTS in lib/style-identity.js)
+// - replaced because linking to real items makes that bucket (and proper
+// season/occasion/colour filtering) computable instead of guessed at upload
+// time, and because it doubles as another way to catch wardrobe pieces that
+// never got catalogued on their own.
 
 export default function ProfileTab({
   data,
@@ -95,12 +101,10 @@ export default function ProfileTab({
     { key: "look", label: "Saved look", photoId: lookPhotoId(randomLook), empty: "Save a look and it lands here" },
   ];
 
-  // Defaults to "all" so the worn-outfits grid shows everything on first
-  // load; "all" isn't a real context though, so wherever a photo actually
-  // needs tagging (the add button, saving a new photo) falls back to
-  // addTarget below rather than using context directly.
-  const [context, setContext] = useState("all");
-  const addTarget = context === "all" ? "cold" : context;
+  // A photo that's been uploaded but not yet linked to wardrobe items - the
+  // in-progress state between "+ Add worn outfit" and "Save outfit". Null
+  // when there's nothing pending.
+  const [pendingWorn, setPendingWorn] = useState(null);
   const [busy, setBusy] = useState(0);
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [idForm, setIdForm] = useState(null);
@@ -135,13 +139,16 @@ export default function ProfileTab({
     return true;
   }
 
+  // Uploads the photo, then opens the linking step (pendingWorn) rather than
+  // saving straight away - a worn outfit isn't complete until it points at
+  // real wardrobe items, or nothing here is ever filterable by season,
+  // occasion or colour.
   async function addPhoto(dataUrl) {
     if (!requireUnlock()) return;
     setBusy((b) => b + 1);
     try {
       // Hash before upload - an exact match against any worn-outfit photo
-      // already saved (in any folder) means this is very likely the same
-      // export added twice.
+      // already saved means this is very likely the same export added twice.
       const hash = await hashDataUrl(dataUrl);
       const dupOf = profile.find((p) => p.hash === hash);
       const photoId = newId("pp");
@@ -150,16 +157,68 @@ export default function ProfileTab({
         flash(up.error);
         return;
       }
-      const item = { id: newId("p"), photoId, hash, context: addTarget, addedAt: Date.now() };
-      const ok = await save("styleProfile", (cur) => [...cur, item]);
-      if (!ok) {
-        deleteImage(adminKey, photoId);
-        return;
-      }
-      if (dupOf) flash("Saved - heads up, this looks identical to one already saved");
+      setPendingWorn({ photoId, hash, itemIds: [] });
+      if (dupOf) flash("Heads up, this looks identical to one already saved");
     } finally {
       setBusy((b) => b - 1);
     }
+  }
+
+  // Files a name-only wardrobe stub for a piece that isn't catalogued yet -
+  // no photo, since the only image available here is the whole outfit, not
+  // this one piece. Full tagging (category, colours, an actual photo of the
+  // item on its own) happens later from the Wardrobe tab, same deferred
+  // spirit as a "wanted" item.
+  async function createWornStub(name) {
+    if (!name) return;
+    const stub = {
+      id: newId("w"),
+      name,
+      brand: "",
+      photoId: null,
+      hash: null,
+      category: "Other",
+      colours: [],
+      season: "All seasons",
+      formality: "Casual",
+      tags: [],
+      status: "owned",
+      fitStatus: "current",
+      needsStyling: false,
+      heavyRotation: false,
+      notes: "Added from a worn-outfit photo - needs full details.",
+      excludeWith: [],
+      layersOverDresses: false,
+      addedAt: Date.now(),
+    };
+    const ok = await save("wardrobe", (cur) => [...cur, stub]);
+    if (ok) {
+      setPendingWorn((cur) => (cur ? { ...cur, itemIds: [...cur.itemIds, stub.id] } : cur));
+    }
+  }
+
+  async function saveWorn() {
+    if (!pendingWorn) return;
+    const item = {
+      id: newId("p"),
+      photoId: pendingWorn.photoId,
+      hash: pendingWorn.hash,
+      item_ids: pendingWorn.itemIds,
+      addedAt: Date.now(),
+    };
+    const ok = await save("styleProfile", (cur) => [...cur, item]);
+    if (ok) {
+      setPendingWorn(null);
+      flash("Outfit saved");
+    }
+  }
+
+  // Discards the photo already uploaded to blob storage along with it -
+  // otherwise cancelling out of the linking step would leave an orphaned
+  // image with nothing pointing at it.
+  function cancelWorn() {
+    if (pendingWorn?.photoId) deleteImage(adminKey, pendingWorn.photoId);
+    setPendingWorn(null);
   }
 
   async function remove(item) {
@@ -169,6 +228,27 @@ export default function ProfileTab({
       cur.filter((p) => p.id !== item.id)
     );
     if (ok && item.photoId) deleteImage(adminKey, item.photoId);
+  }
+
+  // The disruptive reset Jess asked for rather than a retroactive re-tag
+  // pass on photos that only ever carried the old Cold/Warm/Fancy tag - one
+  // deliberate, confirmed action, not something that runs on its own.
+  async function clearAllWorn() {
+    if (!requireUnlock()) return;
+    if (profile.length === 0) return;
+    if (
+      !confirm(
+        `Delete all ${profile.length} worn-outfit photos? This can't be undone - make sure you've downloaded a backup first.`
+      )
+    ) {
+      return;
+    }
+    const photoIds = profile.map((p) => p.photoId).filter(Boolean);
+    const ok = await save("styleProfile", []);
+    if (ok) {
+      photoIds.forEach((id) => deleteImage(adminKey, id));
+      flash("Cleared - add your first outfit under the new system");
+    }
   }
 
   function startIdentityEdit() {
@@ -427,34 +507,15 @@ export default function ProfileTab({
       <div className="worn-outfits-panel">
       <div className="section-h">Worn outfits</div>
       <div className="section-sub">
-        Photos of looks that worked. &ldquo;Just me&rdquo; suggestions use these
-        as grounding.
+        Photos of looks that worked, linked to the real pieces you wore.
+        &ldquo;Just me&rdquo; suggestions use these as grounding.
       </div>
       <div className="toolbar">
-        <div className="chip-pick">
-          <button
-            className={`chip ${context === "all" ? "sel" : ""}`}
-            onClick={() => setContext("all")}
-          >
-            All ({profile.length})
-          </button>
-          {PROFILE_CONTEXTS.map(([v, label]) => (
-            <button
-              key={v}
-              className={`chip ${context === v ? "sel" : ""}`}
-              onClick={() => setContext(v)}
-            >
-              {label} (
-              {profile.filter((p) => p.context === v).length})
-            </button>
-          ))}
-        </div>
         <PhotoButton
           className="btn"
-          label={busy ? `Adding… (${busy})` : `+ Add to ${PROFILE_CONTEXTS.find(([v]) => v === addTarget)[1]}`}
+          label={busy ? `Adding… (${busy})` : "+ Add worn outfit"}
           onPhoto={addPhoto}
           onError={flash}
-          multiple
         />
         <DupesToggle
           count={dupGroups.length}
@@ -462,14 +523,43 @@ export default function ProfileTab({
           onToggle={() => setShowDuplicates(!showDuplicates)}
         />
         <TileToggle size={tileSize} onChange={setTileSize} />
+        {profile.length > 0 && (
+          <button type="button" className="btn ghost" onClick={clearAllWorn}>
+            Clear all &amp; start fresh
+          </button>
+        )}
       </div>
+
+      {pendingWorn && (
+        <div className="flow-config">
+          <div className="src-preview">
+            <Thumb photoId={pendingWorn.photoId} className="src-thumb" />
+          </div>
+          <div className="section-sub">Which of these do you own?</div>
+          <ItemPicker
+            items={wardrobe.filter((w) => w.status === "owned")}
+            selectedIds={pendingWorn.itemIds}
+            onChange={(ids) => setPendingWorn({ ...pendingWorn, itemIds: ids })}
+            onCreateStub={createWornStub}
+          />
+          <div className="row" style={{ marginBottom: 0 }}>
+            <button type="button" className="btn" onClick={saveWorn}>
+              Save outfit
+            </button>
+            <button type="button" className="btn ghost" onClick={cancelWorn}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {showDuplicates && (
         <DuplicatesPanel
           groups={dupGroups}
           renderLabel={(p) => (
             <>
-              {PROFILE_CONTEXTS.find(([v]) => v === p.context)?.[1] || p.context}
+              {(p.item_ids || []).map((id) => byId[id]?.name).filter(Boolean).join(" + ") ||
+                "Worn outfit"}
               <span className="dup-sub">
                 {new Date(p.addedAt).toLocaleDateString("en-AU", {
                   day: "numeric",
@@ -484,12 +574,16 @@ export default function ProfileTab({
       )}
       <div className={`grid ${tileSize === "compact" ? "compact" : ""}`}>
         {profile
-          .filter((p) => context === "all" || p.context === context)
           .sort((a, b) => b.addedAt - a.addedAt)
           .map((p) => (
             <div key={p.id} className="card item-card">
               <Thumb photoId={p.photoId} className="thumb tall" />
               <div className="card-body">
+                {(p.item_ids || []).length > 0 && (
+                  <div className="oi-name">
+                    {p.item_ids.map((id) => byId[id]?.name).filter(Boolean).join(" · ")}
+                  </div>
+                )}
                 <div className="card-actions">
                   <button className="chip" onClick={() => remove(p)}>
                     Remove
@@ -499,10 +593,8 @@ export default function ProfileTab({
             </div>
           ))}
       </div>
-      {profile.filter((p) => context === "all" || p.context === context).length === 0 && (
-        <div className="empty">
-          {context === "all" ? "Log a worn outfit and it lands here." : "Nothing in this folder yet."}
-        </div>
+      {profile.length === 0 && (
+        <div className="empty">Log a worn outfit and it lands here.</div>
       )}
       </div>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { COLOUR_TEXT_HEX } from "../lib/style-identity";
 
 // Small shared pieces used by every tab.
@@ -364,6 +365,83 @@ export function FilterGroup({ title, options, selected, onToggle, swatches }) {
           {count != null && <span className="f-count">({count})</span>}
         </label>
       ))}
+    </div>
+  );
+}
+
+// Search-and-pick multi-select against real wardrobe items - the same
+// pattern the Wardrobe form's "Doesn't pair with" field uses, generalised
+// and given an escape hatch: when nothing matches, `onCreateStub` (if
+// passed) offers to file a name-only wardrobe item on the spot rather than
+// forcing the search to come up empty. Used wherever a flow needs to name
+// actual wardrobe pieces rather than describe them freely - worn-outfit
+// linking is the first caller.
+export function ItemPicker({ items, selectedIds, onChange, onCreateStub, excludeId, placeholder }) {
+  const [search, setSearch] = useState("");
+  const q = norm(search);
+  const matches = q
+    ? items
+        .filter((w) => w.id !== excludeId && !selectedIds.includes(w.id) && norm(w.name).includes(q))
+        .slice(0, 8)
+    : [];
+
+  return (
+    <div className="item-picker">
+      {selectedIds.length > 0 && (
+        <div className="chip-pick" style={{ marginBottom: 8 }}>
+          {selectedIds.map((id) => {
+            const w = items.find((x) => x.id === id);
+            return (
+              <button
+                type="button"
+                key={id}
+                className="chip on"
+                onClick={() => onChange(selectedIds.filter((x) => x !== id))}
+                title="Remove"
+              >
+                {w?.name || "Removed item"} ✕
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <input
+        type="text"
+        placeholder={placeholder || "Search wardrobe to add…"}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      {search.trim() && (
+        <div className="chip-pick" style={{ marginTop: 8 }}>
+          {matches.map((w) => (
+            <button
+              type="button"
+              key={w.id}
+              className="chip"
+              onClick={() => {
+                onChange([...selectedIds, w.id]);
+                setSearch("");
+              }}
+            >
+              {w.name}
+            </button>
+          ))}
+          {onCreateStub ? (
+            <button
+              type="button"
+              className="chip"
+              onClick={() => {
+                onCreateStub(search.trim());
+                setSearch("");
+              }}
+            >
+              + Add &ldquo;{search.trim()}&rdquo; as new
+            </button>
+          ) : (
+            matches.length === 0 && <span className="count">No match</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

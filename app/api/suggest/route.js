@@ -486,7 +486,7 @@ Show its range: vary the direction across outfits (e.g. one everyday, one dresse
 
   const profileNote =
     styleProfile.length > 0
-      ? `\nThey keep ${styleProfile.length} photos of worn outfits they were happy with (cold weather / warm weather / fancy)${
+      ? `\nThey keep ${styleProfile.length} photos of worn outfits they were happy with${
           filters.justMe ? " - a few are attached as reference for how they actually dress" : ""
         }.`
       : "";

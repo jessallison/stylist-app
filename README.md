@@ -85,10 +85,13 @@ included in that JSON).
   source), flat-lay moodboard (colour/pairing signal only, no proportion), or
   product/resale pin (routed to the wardrobe as `wanted`, not used as styling
   reference).
-- Style profile: worn-outfit photos, grouped into Cold weather / Warm weather
-  / Fancy. These groupings are a hardcoded constant (`PROFILE_CONTEXTS` in
-  `lib/style-identity.js`), not a setting - rename or add to them there if
-  you group differently.
+- Style profile: worn-outfit photos, each linked to the real wardrobe pieces
+  worn in it (`item_ids`, same shape a saved look uses) via a search-and-pick
+  step at upload - anything not already catalogued gets filed as a name-only
+  wardrobe stub on the spot (no photo; that comes later from the Wardrobe
+  tab) rather than blocking the log. Replaced a hand-picked Cold/Warm/Fancy
+  tag (Sep 2026) so the same season/occasion/colour data on wardrobe items
+  can drive filtering here too, instead of a separate three-bucket scheme.
 - Saved looks: any suggestion can be kept ("Save this look") - stored as item
   references plus the stylist's reasoning, listed on the Style me tab.
 - Home city (optional, set on the Profile tab under the style identity):
