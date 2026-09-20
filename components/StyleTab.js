@@ -843,7 +843,6 @@ function StylingLoader({ message, heading, thumb }) {
         )}
         <div className="styling-text">
           <div className="styling-title">
-            <Hanger />
             <span>{heading}</span>
           </div>
           <div className="styling-msg" key={message}>
@@ -871,28 +870,6 @@ function StylingLoader({ message, heading, thumb }) {
         ))}
       </div>
     </div>
-  );
-}
-
-// A coat hanger, drawn once as inline SVG and set swinging by CSS. Pivots
-// from the hook so it moves the way a real one does.
-function Hanger() {
-  return (
-    <svg
-      className="hanger"
-      viewBox="0 0 48 40"
-      width="34"
-      height="28"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M24 3.5a4 4 0 1 1 4 4c-2 0-4 1.4-4 3.5v3" />
-      <path d="M24 14 4.5 27.5c-1.4 1-.7 3.2 1 3.2h37c1.7 0 2.4-2.2 1-3.2L24 14z" />
-    </svg>
   );
 }
 
