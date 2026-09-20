@@ -33,6 +33,7 @@ export default function StyleTab({
   flash,
   request,
   clearRequest,
+  goToTab,
 }) {
   const [flow, setFlow] = useState("B");
   const [inspoId, setInspoId] = useState("");
@@ -166,15 +167,6 @@ export default function StyleTab({
   const byId = Object.fromEntries(wardrobe.map((w) => [w.id, w]));
   const owned = wardrobe.filter((w) => w.status === "owned");
   const anchorable = owned.filter((w) => w.fitStatus !== "not_current");
-  const matchableInspo = data.inspo.filter((i) => i.type !== "product");
-  // Dropdown-only sorts (A-Z by what's actually shown in the option) - the
-  // underlying anchorable/matchableInspo arrays stay in their original order
-  // for everything else that reads them (e.g. the manual builder's grid).
-  const anchorableAZ = [...anchorable].sort((a, b) => a.name.localeCompare(b.name));
-  const inspoLabel = (i) => [i.notes || "Inspo", i.occasion, i.season].filter(Boolean).join(" · ");
-  const matchableInspoAZ = [...matchableInspo].sort((a, b) =>
-    inspoLabel(a).localeCompare(inspoLabel(b))
-  );
 
   async function run(overrides = {}) {
     if (!unlocked) {
@@ -452,23 +444,18 @@ export default function StyleTab({
         </div>
       )}
       <div className="flow-row">
-        {flowBtn("B", "Suggest outfits", "from filters, or nothing at all")}
-        {flowBtn("A", "Match an inspo image", "rebuild a saved look from my wardrobe")}
-        {flowBtn("C", "Style a piece", "a new buy, or something I never wear")}
-        {flowBtn("M", "Build my own", "pick pieces by hand")}
+        {flowBtn("B", "Suggest outfits", "by season, occasion or colour")}
+        {flowBtn("A", "Match an inspo image", "recreate a saved look")}
+        {flowBtn("C", "Style a piece", "something from my wardrobe")}
+        {flowBtn("M", "Build my own", "create an outfit from scratch")}
       </div>
 
       {flow === "A" && (
         <div className="flow-config" ref={configAnchorRef}>
           <div className="row">
-            <select value={inspoId} onChange={(e) => { setInspoId(e.target.value); setImage(null); }}>
-              <option value="">Pick from the inspo library…</option>
-              {matchableInspoAZ.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {inspoLabel(i).slice(0, 70)}
-                </option>
-              ))}
-            </select>
+            <button type="button" className="btn ghost" onClick={() => goToTab("inspo")}>
+              Pick from the inspo library
+            </button>
             <span className="count" style={{ margin: 0 }}>or</span>
             <PhotoButton
               className="btn ghost"
@@ -495,15 +482,9 @@ export default function StyleTab({
       {flow === "C" && (
         <div className="flow-config" ref={configAnchorRef}>
           <div className="row">
-            <select value={anchorId} onChange={(e) => { setAnchorId(e.target.value); setImage(null); }}>
-              <option value="">Pick a piece I own…</option>
-              {anchorableAZ.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                  {w.needsStyling ? " · needs styling" : ""}
-                </option>
-              ))}
-            </select>
+            <button type="button" className="btn ghost" onClick={() => goToTab("wardrobe")}>
+              Pick a piece I own
+            </button>
             <span className="count" style={{ margin: 0 }}>or</span>
             <PhotoButton
               className="btn ghost"

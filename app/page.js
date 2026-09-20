@@ -593,6 +593,7 @@ export default function Home() {
           {...tabProps}
           request={styleRequest}
           clearRequest={() => setStyleRequest(null)}
+          goToTab={setTab}
         />
       </div>
       <div style={{ display: tab === "wardrobe" ? undefined : "none" }}>
