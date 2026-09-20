@@ -329,18 +329,23 @@ header.top {
   color: var(--swatch-color);
 }
 
-/* ChipPick's colour picker sits in a full-height wardrobe/inspo form, not
-   a compact popover, so pinning it to light mode (like .filter-panel
-   below) would read as a stray light island mid-form. Simpler fix here:
-   drop the colour tint in dark mode and fall back to plain ink - the
-   swatch was only ever a legibility aid, not the point of the control. */
+/* Drop the colour tint in dark mode, everywhere it appears (ChipPick's
+   form colour picker, FilterGroup's filter-panel checklist) and fall back
+   to plain ink - the swatch was only ever a legibility aid on a light
+   background, not the point of the control. This used to be two different
+   fixes (this one, plus pinning .filter-panel itself to light so the tint
+   stayed legible there) - dropping the tint here as well meant the panel
+   no longer needed pinning at all, so it was simpler to retire that and
+   let it render as a normal dark panel like everything else. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .chip-pick .swatch-text {
+  :root:not([data-theme="light"]) .chip-pick .swatch-text,
+  :root:not([data-theme="light"]) .filter-panel .swatch-text {
     color: var(--ink);
   }
 }
 
-:root[data-theme="dark"] .chip-pick .swatch-text {
+:root[data-theme="dark"] .chip-pick .swatch-text,
+:root[data-theme="dark"] .filter-panel .swatch-text {
   color: var(--ink);
 }
 
@@ -670,31 +675,13 @@ header.top {
   gap: 20px 24px;
 }
 
-/* Pinned to light mode even when the page is dark. The colour-swatch text
-   in FilterGroup (see swatchLabel in shared.js) uses the COLOUR_TEXT_HEX
-   palette, hand-tuned for a light background only - flipping this panel's
-   own bg/ink/muted/line to their dark values would make "Black" invisible
-   and "White"/"Grey" nearly so. This is a compact popover-style surface
-   (unlike ChipPick's full-height form, see .chip-pick .swatch-text above),
-   so pinning the whole thing back to light reads as a deliberate card
-   rather than a layout glitch, and is simpler than a second dark palette. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .filter-panel {
-    --bg: #ffffff;
-    --card: #ffffff;
-    --ink: #141210;
-    --muted: #6f6a60;
-    --line: #e5e4e0;
-  }
-}
-
-:root[data-theme="dark"] .filter-panel {
-  --bg: #ffffff;
-  --card: #ffffff;
-  --ink: #141210;
-  --muted: #6f6a60;
-  --line: #e5e4e0;
-}
+/* Used to be pinned to light mode even when the page is dark, so the
+   COLOUR_TEXT_HEX swatch text (tuned for a light background) stayed
+   legible. Retired that in favour of dropping the tint in dark mode
+   instead (see .filter-panel .swatch-text near .chip-pick above) - once
+   the tint isn't shown, there's nothing left needing a light background,
+   and the panel can just render as a normal dark card like everything
+   else instead of a "light island" special case. */
 
 .f-group-title {
   font-size: 0.6rem;
