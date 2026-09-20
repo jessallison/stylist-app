@@ -20,6 +20,7 @@ import {
   FilterGroup,
   toggleIn,
   outfitFacets,
+  sortItemIdsByCategory,
 } from "./shared";
 
 // Style profile: worn-outfit photos, each linked to the real wardrobe pieces
@@ -640,8 +641,10 @@ export default function ProfileTab({
           groups={dupGroups}
           renderLabel={(p) => (
             <>
-              {(p.item_ids || []).map((id) => byId[id]?.name).filter(Boolean).join(" + ") ||
-                "Worn outfit"}
+              {sortItemIdsByCategory(p.item_ids || [], byId)
+                .map((id) => byId[id]?.name)
+                .filter(Boolean)
+                .join(" + ") || "Worn outfit"}
               <span className="dup-sub">
                 {new Date(p.addedAt).toLocaleDateString("en-AU", {
                   day: "numeric",
@@ -666,7 +669,10 @@ export default function ProfileTab({
                 <div className="card-body">
                   {(p.item_ids || []).length > 0 && (
                     <div className="oi-name">
-                      {p.item_ids.map((id) => byId[id]?.name).filter(Boolean).join(" · ")}
+                      {sortItemIdsByCategory(p.item_ids, byId)
+                        .map((id) => byId[id]?.name)
+                        .filter(Boolean)
+                        .join(" · ")}
                     </div>
                   )}
                   <div className="card-actions">

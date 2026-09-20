@@ -28,6 +28,39 @@ export function toggleIn(set, value, setter) {
 // piece updates every outfit's filters automatically. A "NEW" placeholder
 // id (an anchor piece not yet catalogued) and any id no longer in the
 // wardrobe are silently skipped rather than counted as a facet of their own.
+// Head-to-toe order for displaying an outfit's pieces: headwear first, down
+// through tops and bottoms, to shoes/outerwear/belts and jewellery last -
+// so a saved look (or worn outfit) always reads top-to-bottom the way a
+// person actually gets dressed, regardless of what order the AI listed the
+// pieces in or the person picked them by hand. Anything not listed here (an
+// uncatalogued "NEW" anchor piece, or a category that isn't in this list)
+// sorts after everything else rather than jumping to a fixed spot.
+export const OUTFIT_ITEM_ORDER = [
+  "Hats",
+  "Sunglasses",
+  "Scarves & shawls",
+  "Tops",
+  "Knitwear & jumpers",
+  "Dresses",
+  "Skirts",
+  "Bottoms",
+  "Shoes",
+  "Outerwear",
+  "Belts",
+  "Bags",
+  "Gloves",
+  "Jewellery",
+  "Other",
+];
+
+export function sortItemIdsByCategory(itemIds, byId) {
+  const rank = (id) => {
+    const idx = OUTFIT_ITEM_ORDER.indexOf(byId[id]?.category);
+    return idx === -1 ? OUTFIT_ITEM_ORDER.length : idx;
+  };
+  return [...itemIds].sort((a, b) => rank(a) - rank(b));
+}
+
 export function outfitFacets(itemIds, byId) {
   const items = (itemIds || [])
     .filter((id) => id !== "NEW")

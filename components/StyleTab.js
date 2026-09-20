@@ -13,6 +13,7 @@ import {
   FilterGroup,
   toggleIn,
   outfitFacets,
+  sortItemIdsByCategory,
 } from "./shared";
 import { fetchToday, seasonFromWeather, summarise } from "../lib/weather";
 
@@ -905,8 +906,11 @@ function OutfitCard({ o, byId, newThumb, actions, onDismissGap }) {
       <div className="outfit-items">
         {/* De-duped defensively at render time too, so a look saved before
             the API-level fix (or anything hand-edited in storage) never
-            shows the same item twice. */}
-        {[...new Set(o.item_ids)].map((id) =>
+            shows the same item twice. Sorted head-to-toe (see
+            sortItemIdsByCategory) so an outfit always reads top-to-bottom
+            regardless of what order the pieces were picked or generated
+            in. */}
+        {sortItemIdsByCategory([...new Set(o.item_ids)], byId).map((id) =>
           id === "NEW" ? (
             <div key={id} className="outfit-item">
               <Thumb

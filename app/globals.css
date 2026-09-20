@@ -1285,13 +1285,14 @@ header.top {
   margin-bottom: 10px;
 }
 
-/* Worn outfits is a photo wall like Wardrobe/Inspo and could reasonably
-   stay full-width, but sitting directly under the narrow (700px) Style
-   identity form made the page read as broken rather than intentional -
-   capping it to match is the smaller visual change of the two. */
-.worn-outfits-panel {
-  max-width: 700px;
-}
+/* Worn outfits is a photo wall like Wardrobe/Inspo, and the section
+   directly above it (profile-hero, in its non-editing display state) is
+   already full-width - capping this to the identity form's 700px (a state
+   that isn't even showing most of the time) made the two sections mismatch
+   far more often than it matched. Sep 2026: dropped the cap so this always
+   uses the same available width as the hero row and everywhere else's
+   .grid, instead of jumping between "matches the rare edit-form width" and
+   "narrower than the section right above it" depending on state. */
 
 .form .cols {
   display: grid;
@@ -1869,17 +1870,29 @@ header.top {
   padding: 6px 0;
 }
 
+/* Five-track grid with each tile spanning two, so a snapshot tile ends up
+   the same "2/5 of the row" proportion (and the same gap rhythm - .grid's
+   own values) as a card in Wardrobe/Inspo's listing grid at this column's
+   width, instead of the old edge-to-edge 1fr/1fr halves with a 2px hairline
+   standing in for a gap. Sep 2026, matching Jess's reference screenshot of
+   the Inspo grid's spacing. */
 .profile-snapshot {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
-  background: var(--line);
-  border: 1px solid var(--line);
+  grid-template-columns: repeat(5, 1fr);
+  gap: 24px 14px;
+}
+
+@media (min-width: 700px) {
+  .profile-snapshot {
+    gap: 36px 20px;
+  }
 }
 
 .snapshot-tile {
+  grid-column: span 2;
   position: relative;
-  background: var(--bg);
+  background: var(--tile);
+  border: 1px solid var(--line);
 }
 
 .snapshot-tile .thumb {
