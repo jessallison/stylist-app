@@ -1650,6 +1650,33 @@ header.top {
   width: 96px;
 }
 
+/* Fixed 96px thumbs only fit two per row on a phone-width card (390-428px
+   viewport minus .wrap and .outfit-card padding leaves ~300-340px, and
+   three at 96px plus gaps needs ~312px) - right at the edge, so some phones
+   get three and others silently drop to two. A grid sized off the actual
+   available width guarantees three regardless of exact viewport, matching
+   how the compact density option already behaves (four narrower columns,
+   below). Left alone above 480px, where the existing flex-wrap already has
+   enough room to look right without forcing a column count. */
+@media (max-width: 480px) {
+  .outfit-items {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .outfit-item {
+    width: auto;
+  }
+  .outfit-item .thumb.sq {
+    width: 100%;
+  }
+  /* Compact already fits four narrower (64px) columns via flex-wrap on a
+     phone - the three-column grid above is for the full-size view only. */
+  .results.saved-looks.compact .outfit-items {
+    display: flex;
+  }
+}
+
 .oi-name {
   font-size: 0.56rem;
   font-weight: 500;
@@ -2268,9 +2295,21 @@ header.top {
   .flow-btn {
     border-right: none;
     border-bottom: 1px solid var(--line);
+    /* Full-width row now, not a narrow grid cell, so there's room to run
+       the label and its caption side by side instead of stacking them -
+       stacked was a squeeze-driven layout for the 2/4-column grid above
+       this breakpoint, not a good fit for a full-width button. */
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
   }
   .flow-btn:last-child {
     border-bottom: none;
+  }
+  .flow-btn .flow-sub {
+    font-size: 0.6rem;
+    text-align: right;
   }
   /* Nav wraps to two lines here - Dark/Lock end up sharing a row with
      whichever tab wraps last (Profile) at only 14px apart, reading as if
