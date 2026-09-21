@@ -265,27 +265,6 @@ export default function ProfileTab({
     if (ok && item.photoId) deleteImage(adminKey, item.photoId);
   }
 
-  // The disruptive reset Jess asked for rather than a retroactive re-tag
-  // pass on photos that only ever carried the old Cold/Warm/Fancy tag - one
-  // deliberate, confirmed action, not something that runs on its own.
-  async function clearAllWorn() {
-    if (!requireUnlock()) return;
-    if (profile.length === 0) return;
-    if (
-      !confirm(
-        `Delete all ${profile.length} worn-outfit photos? This can't be undone - make sure you've downloaded a backup first.`
-      )
-    ) {
-      return;
-    }
-    const photoIds = profile.map((p) => p.photoId).filter(Boolean);
-    const ok = await save("styleProfile", []);
-    if (ok) {
-      photoIds.forEach((id) => deleteImage(adminKey, id));
-      flash("Cleared - add your first outfit under the new system");
-    }
-  }
-
   function startIdentityEdit() {
     if (!requireUnlock()) return;
     setIdForm({
@@ -582,11 +561,6 @@ export default function ProfileTab({
           onToggle={() => setShowDuplicates(!showDuplicates)}
         />
         <TileToggle size={tileSize} onChange={setTileSize} />
-        {profile.length > 0 && (
-          <button type="button" className="btn ghost" onClick={clearAllWorn}>
-            Clear all &amp; start fresh
-          </button>
-        )}
       </div>
 
       {showWornFilters && (
