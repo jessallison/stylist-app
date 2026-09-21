@@ -461,10 +461,11 @@ export function ItemPicker({ items, selectedIds, onChange, onCreateStub, exclude
               <button
                 type="button"
                 key={id}
-                className="chip on"
+                className={`chip on${w?.photoId ? " has-thumb" : ""}`}
                 onClick={() => onChange(selectedIds.filter((x) => x !== id))}
                 title="Remove"
               >
+                {w?.photoId && <Thumb photoId={w.photoId} className="chip-thumb" />}
                 {w?.name || "Removed item"} ✕
               </button>
             );
@@ -483,12 +484,13 @@ export function ItemPicker({ items, selectedIds, onChange, onCreateStub, exclude
             <button
               type="button"
               key={w.id}
-              className="chip"
+              className={`chip${w.photoId ? " has-thumb" : ""}`}
               onClick={() => {
                 onChange([...selectedIds, w.id]);
                 setSearch("");
               }}
             >
+              {w.photoId && <Thumb photoId={w.photoId} className="chip-thumb" />}
               {w.name}
             </button>
           ))}

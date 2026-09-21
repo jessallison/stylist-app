@@ -321,6 +321,25 @@ header.top {
   padding: 6px 10px;
 }
 
+/* Linking a worn outfit to real wardrobe items (see ItemPicker in shared.js)
+   used to be name-only chips - fine until two items share a vague name, or
+   the name alone just isn't enough to place the piece. A small preview
+   solves that without turning the picker into a photo grid. */
+.chip.has-thumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 6px;
+}
+
+.chip-thumb {
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--tile);
+}
+
 /* See swatchLabel in shared.js - carries the COLOUR_TEXT_HEX tint via this
    custom property instead of a plain inline colour, so dark mode can
    override it below without an !important fight. */
