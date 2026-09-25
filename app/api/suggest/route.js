@@ -353,6 +353,20 @@ export async function POST(request) {
   };
   const onePairOfLongPants = (o) => o.item_ids.filter(isLongPants).length <= 1;
 
+  // Long trousers already cover the leg, so shorts underneath or over them
+  // is never a real look (unlike leggings/tights, which genuinely do go
+  // under shorts - that's why those are excluded from isLongPants above
+  // rather than treated as "shorts" here). Skorts and hot pants are shorts
+  // in every way that matters for this rule.
+  const SHORTS_RE = /\b(shorts?|skorts?|hot ?pants)\b/i;
+  const isShorts = (id) => {
+    const w = itemOf.get(id);
+    if (!w || w.category !== "Bottoms") return false;
+    return SHORTS_RE.test([w.name, ...(w.tags || [])].join(" "));
+  };
+  const noShortsWithLongPants = (o) =>
+    !(o.item_ids.some(isLongPants) && o.item_ids.some(isShorts));
+
   // At most one dress per outfit unless at least one of them is specifically
   // cut to layer over or under another (a sheer/lace overlay, a slip dress)
   // - two structured dresses (two jumper dresses, say) can never both be
@@ -390,6 +404,7 @@ export async function POST(request) {
           (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
         ) &&
         onePairOfLongPants(o) &&
+        noShortsWithLongPants(o) &&
         validDressPairing(o)
     );
     if (!randomOutfits.length) {
@@ -500,6 +515,7 @@ RULES:
 - 2 to 6 items per outfit; complete looks (shoes/outerwear when the wardrobe has suitable ones), accessories encouraged.
 - Never more than one pair of shoes, one bag, one pair of sunglasses, one belt, one hat, one pair of gloves or one skirt in the same outfit. A skirt paired with trousers or with a dress is fine - it's only ever two skirts together that's wrong.
 - Never two pairs of long trousers (jeans, trousers, wide-legs, joggers) in one outfit. Leggings under shorts is fine; jeans under trousers is not.
+- Never a pair of long trousers together with shorts (or skorts/hot pants) in the same outfit - trousers already cover the leg, so shorts on top or underneath is never a real look.
 - Never two dresses in one outfit unless at least one is tagged "can layer over/under another dress" in the wardrobe list - most dresses (a jumper dress, a shirt dress) can never both be worn at once, only a sheer/lace/slip cut is actually built to go over or under one.
 - Watch proportion: if two of the outfit's pieces are both loose or voluminous (an oversized top or dress with wide-leg or baggy bottoms, two boxy layers), either say in "styling_notes" what defines the shape (tuck, belt, a fitted layer) or pick something slimmer instead - don't pair two loose pieces silently and assume it works. Their style can genuinely lean slouchy/relaxed (see THREE WORDS above), so this is a check to reason through, not a ban on volume.
 - "title", "why" and "styling_notes" may only describe items that are actually in this outfit's "item_ids", by name or garment type - never name a different garment type than what's actually selected (a skirt outfit titled around "shorts", say). If finishing the look would need something they don't have on, that's a gap - put it in "gaps", never write as if an unselected piece (a layer, an underlayer, anything) is already part of the outfit.
@@ -605,6 +621,7 @@ ${flowText}`;
             (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
           ) &&
           onePairOfLongPants(o) &&
+          noShortsWithLongPants(o) &&
           validDressPairing(o)
       );
 
