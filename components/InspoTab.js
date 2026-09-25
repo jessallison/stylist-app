@@ -658,9 +658,46 @@ export default function InspoTab({
           <div
             key={i.id}
             className="card item-card clickable"
-            onClick={() => startEdit(i)}
+            onClick={() => {
+              // Compact grid only: the photo IS the tile (badges/notes/
+              // actions are all hidden - see the card-body comment below),
+              // so tapping it now runs whichever primary action
+              // compact-style-link shows below, instead of Edit - the two
+              // used to sit right on top of each other on a phone, easy to
+              // mix up mid-tap. Edit moves to editIconBtn. Full grid keeps
+              // tapping the photo as Edit - plenty of room there before
+              // the real action in card-actions, so it was never a problem.
+              if (tileSize !== "compact") return startEdit(i);
+              if (i.type === "product") {
+                if (!i.wantedItemId && !addingWanted.has(i.id)) handleAddWanted(i);
+              } else {
+                onMatch(i.id);
+              }
+            }}
           >
             <Thumb photoId={i.photoId} className="thumb tall" />
+            {/* Compact-grid-only edit icon - bare glyph, no chip/background,
+                white with a dark drop-shadow so it reads over any photo
+                regardless of the item's own colours. Hidden in full grid
+                via CSS - see .grid.compact .edit-icon-btn. */}
+            <button
+              type="button"
+              className="edit-icon-btn"
+              aria-label="Edit item"
+              title="Edit"
+              onClick={(e) => {
+                e.stopPropagation();
+                startEdit(i);
+              }}
+            >
+              <svg viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M11.3 2.3a1 1 0 0 1 1.4 0l1 1a1 1 0 0 1 0 1.4l-7 7-3 .7.7-3 7-7Z"
+                  stroke="currentColor"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
             {/* Compact grid hides .card-body entirely (badges/notes/all
                 actions) to fit more tiles per row - mirrors Wardrobe's
                 compact-style-link: the one action that survives, as a bare

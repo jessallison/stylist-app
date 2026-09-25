@@ -1365,9 +1365,49 @@ export default function WardrobeTab({
           <div
             key={w.id}
             className={`card item-card clickable ${bulkMode && bulkSelected.has(w.id) ? "picked" : ""}`}
-            onClick={() => (bulkMode ? toggleBulk(w.id) : startEdit(w))}
+            onClick={() => {
+              if (bulkMode) return toggleBulk(w.id);
+              // Compact grid only: the photo IS the tile here (name/meta/
+              // actions are all hidden - see the card-body comment below),
+              // so tapping it now does the common thing (Style) instead of
+              // Edit. Edit moves to editIconBtn, a small deliberate target,
+              // because on a phone that same photo used to be one giant
+              // "open Edit" hit zone sitting right next to the actual
+              // Style link - the two were easy to mix up mid-tap. Full
+              // grid keeps the old behaviour (name/meta/badges already
+              // give plenty of room before Style this in card-actions, so
+              // this was never a problem there).
+              if (tileSize === "compact") return onStyle(w.id);
+              startEdit(w);
+            }}
           >
             <Thumb photoId={w.photoId} alt={w.name} />
+            {/* Compact-grid-only edit icon - bare glyph, no chip/background,
+                white with a dark drop-shadow so it reads over any photo
+                regardless of the item's own colours (it can't take its
+                colour from --ink/--muted the way everything else does,
+                since what's under it is a photo, not the page). Hidden in
+                full grid via CSS - see .grid.compact .edit-icon-btn. */}
+            {!bulkMode && (
+              <button
+                type="button"
+                className="edit-icon-btn"
+                aria-label="Edit item"
+                title="Edit"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEdit(w);
+                }}
+              >
+                <svg viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M11.3 2.3a1 1 0 0 1 1.4 0l1 1a1 1 0 0 1 0 1.4l-7 7-3 .7.7-3 7-7Z"
+                    stroke="currentColor"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            )}
             {/* Compact grid hides .card-body entirely (name/meta/badges/all
                 actions) to fit more tiles per row - this is the one action
                 that survives that, as a bare link under the thumb. */}

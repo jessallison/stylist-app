@@ -860,6 +860,46 @@ header.top {
   color: var(--ink);
 }
 
+/* Compact-grid-only edit icon, overlaid on the photo's corner. White glyph,
+   no chip/border/hard edge - just a soft dark halo behind it (a vignette,
+   not a shape you'd call a "background") so it holds up on a pale or
+   near-white item photo, which a drop-shadow alone doesn't: tested against
+   an actual white-on-white item and the shadow-only version nearly
+   vanished. The halo costs it nothing on a dark item either - a white icon
+   was already clear there, see item-card's onClick). Sized for a real tap
+   target (30x30) even though only the glyph plus its halo are visible.
+   Hidden in full grid - tapping the photo there still opens Edit directly
+   (see item-card's onClick), so a second Edit control would be redundant. */
+.edit-icon-btn {
+  display: none;
+}
+
+.grid.compact .edit-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: radial-gradient(
+    circle,
+    rgba(0, 0, 0, 0.32) 0%,
+    rgba(0, 0, 0, 0.16) 50%,
+    rgba(0, 0, 0, 0) 75%
+  );
+  color: #fff;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5));
+}
+
+.grid.compact .edit-icon-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
 /* --- Tile density toggle ---------------------------------------------------- */
 
 .tile-toggle {
