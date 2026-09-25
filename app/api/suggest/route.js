@@ -336,36 +336,26 @@ export async function POST(request) {
   // across categories the way validDressPairing below does for dresses.
   const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts", "Hats", "Gloves", "Skirts"];
 
-  // At most one pair of long trousers per outfit. Leggings under shorts is
-  // a look; jeans under wide-legs is not. Bottoms is a single category, so
-  // "long pants" is Bottoms minus the short and skin-tight kinds, matched on
-  // the item's name and tags. This is the one place name-matching is used
-  // for a hard rule: the alternative (a length subfield on every Bottoms
-  // item, plus a backfill) is a lot of structure for a rule with an obvious
-  // lexical signal, and the failure mode of a miss is one odd suggestion,
-  // not a broken outfit. Shared by both the AI path and the no-key fallback.
+  // At most one "outer" leg covering per outfit (long trousers, shorts,
+  // skorts, hot pants - whichever kind, only one), plus optionally one
+  // legging/tights layer underneath. Bottoms is a single wardrobe category,
+  // so "legging-like" is matched on the item's name and tags rather than a
+  // length/style subfield. This is the one place name-matching is used for
+  // a hard rule: the alternative (a subfield on every Bottoms item, plus a
+  // backfill) is a lot of structure for a rule with an obvious lexical
+  // signal, and the failure mode of a miss is one odd suggestion, not a
+  // broken outfit. Shared by both the AI path and the no-key fallback.
   const itemOf = new Map(wardrobe.map((w) => [w.id, w]));
-  const NOT_LONG_PANTS_RE = /\b(shorts?|leggings?|tights?|skorts?|hot ?pants)\b/i;
-  const isLongPants = (id) => {
+  const LEGGING_RE = /\b(leggings?|tights?)\b/i;
+  const isLegging = (id) => {
     const w = itemOf.get(id);
-    if (!w || w.category !== "Bottoms") return false;
-    return !NOT_LONG_PANTS_RE.test([w.name, ...(w.tags || [])].join(" "));
+    return !!w && w.category === "Bottoms" && LEGGING_RE.test([w.name, ...(w.tags || [])].join(" "));
   };
-  const onePairOfLongPants = (o) => o.item_ids.filter(isLongPants).length <= 1;
-
-  // Long trousers already cover the leg, so shorts underneath or over them
-  // is never a real look (unlike leggings/tights, which genuinely do go
-  // under shorts - that's why those are excluded from isLongPants above
-  // rather than treated as "shorts" here). Skorts and hot pants are shorts
-  // in every way that matters for this rule.
-  const SHORTS_RE = /\b(shorts?|skorts?|hot ?pants)\b/i;
-  const isShorts = (id) => {
-    const w = itemOf.get(id);
-    if (!w || w.category !== "Bottoms") return false;
-    return SHORTS_RE.test([w.name, ...(w.tags || [])].join(" "));
+  const validBottomsPairing = (o) => {
+    const bottoms = o.item_ids.filter((id) => itemOf.get(id)?.category === "Bottoms");
+    const outers = bottoms.filter((id) => !isLegging(id));
+    return outers.length <= 1 && bottoms.length - outers.length <= 1;
   };
-  const noShortsWithLongPants = (o) =>
-    !(o.item_ids.some(isLongPants) && o.item_ids.some(isShorts));
 
   // At most one dress per outfit unless at least one of them is specifically
   // cut to layer over or under another (a sheer/lace overlay, a slip dress)
@@ -403,8 +393,7 @@ export async function POST(request) {
         ONE_PER_OUTFIT_CATEGORIES.every(
           (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
         ) &&
-        onePairOfLongPants(o) &&
-        noShortsWithLongPants(o) &&
+        validBottomsPairing(o) &&
         validDressPairing(o)
     );
     if (!randomOutfits.length) {
@@ -514,8 +503,7 @@ RULES:
 - item_ids may only contain ids from the OWNED WARDROBE list${anchor ? ` (plus the anchor ${anchor.id})` : ""}${flow === "C" && !anchor ? ` (plus "NEW" for the just-bought anchor)` : ""}.
 - 2 to 6 items per outfit; complete looks (shoes/outerwear when the wardrobe has suitable ones), accessories encouraged.
 - Never more than one pair of shoes, one bag, one pair of sunglasses, one belt, one hat, one pair of gloves or one skirt in the same outfit. A skirt paired with trousers or with a dress is fine - it's only ever two skirts together that's wrong.
-- Never two pairs of long trousers (jeans, trousers, wide-legs, joggers) in one outfit. Leggings under shorts is fine; jeans under trousers is not.
-- Never a pair of long trousers together with shorts (or skorts/hot pants) in the same outfit - trousers already cover the leg, so shorts on top or underneath is never a real look.
+- Only one "outer" leg covering per outfit - one pair of trousers, OR one pair of shorts (or skorts/hot pants), never two of the same kind and never two different kinds together. Leggings or tights can go underneath that one outer piece, but only one pair of those too - never two pairs of leggings, and never leggings as a second "outer" layer.
 - Never two dresses in one outfit unless at least one is tagged "can layer over/under another dress" in the wardrobe list - most dresses (a jumper dress, a shirt dress) can never both be worn at once, only a sheer/lace/slip cut is actually built to go over or under one.
 - Watch proportion: if two of the outfit's pieces are both loose or voluminous (an oversized top or dress with wide-leg or baggy bottoms, two boxy layers), either say in "styling_notes" what defines the shape (tuck, belt, a fitted layer) or pick something slimmer instead - don't pair two loose pieces silently and assume it works. Their style can genuinely lean slouchy/relaxed (see THREE WORDS above), so this is a check to reason through, not a ban on volume.
 - "title", "why" and "styling_notes" may only describe items that are actually in this outfit's "item_ids", by name or garment type - never name a different garment type than what's actually selected (a skirt outfit titled around "shorts", say). If finishing the look would need something they don't have on, that's a gap - put it in "gaps", never write as if an unselected piece (a layer, an underlayer, anything) is already part of the outfit.
@@ -620,8 +608,7 @@ ${flowText}`;
           ONE_PER_OUTFIT_CATEGORIES.every(
             (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
           ) &&
-          onePairOfLongPants(o) &&
-          noShortsWithLongPants(o) &&
+          validBottomsPairing(o) &&
           validDressPairing(o)
       );
 
