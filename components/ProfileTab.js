@@ -149,7 +149,13 @@ export default function ProfileTab({
   );
   function wornPasses(p, skip) {
     const f = wornFacets[p.id];
-    if (skip !== "sea" && wornSeas.size && ![...wornSeas].some((v) => f.seasons.has(v)))
+    if (
+      skip !== "sea" &&
+      wornSeas.size &&
+      ![...wornSeas].some(
+        (v) => f.seasons.has(v) || (v !== "All seasons" && f.seasons.has("All seasons"))
+      )
+    )
       return false;
     if (skip !== "form" && wornForm.size && ![...wornForm].some((v) => f.formality.has(v)))
       return false;
@@ -567,7 +573,12 @@ export default function ProfileTab({
         <div className="filter-panel">
           <FilterGroup
             title="Season"
-            options={wornCountsFor("sea", SEASONS, (f, v) => f.seasons.has(v), wornSeas)}
+            options={wornCountsFor(
+              "sea",
+              SEASONS,
+              (f, v) => f.seasons.has(v) || (v !== "All seasons" && f.seasons.has("All seasons")),
+              wornSeas
+            )}
             selected={wornSeas}
             onToggle={(v) => toggleIn(wornSeas, v, setWornSeas)}
           />

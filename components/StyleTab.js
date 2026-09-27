@@ -448,7 +448,13 @@ export default function StyleTab({
   );
   function lookPasses(l, skip) {
     const f = lookFacets[l.id];
-    if (skip !== "sea" && lookSeas.size && ![...lookSeas].some((v) => f.seasons.has(v)))
+    if (
+      skip !== "sea" &&
+      lookSeas.size &&
+      ![...lookSeas].some(
+        (v) => f.seasons.has(v) || (v !== "All seasons" && f.seasons.has("All seasons"))
+      )
+    )
       return false;
     if (skip !== "form" && lookForm.size && ![...lookForm].some((v) => f.formality.has(v)))
       return false;
@@ -761,7 +767,12 @@ export default function StyleTab({
             <div className="filter-panel">
               <FilterGroup
                 title="Season"
-                options={lookCountsFor("sea", SEASONS, (f, v) => f.seasons.has(v), lookSeas)}
+                options={lookCountsFor(
+                  "sea",
+                  SEASONS,
+                  (f, v) => f.seasons.has(v) || (v !== "All seasons" && f.seasons.has("All seasons")),
+                  lookSeas
+                )}
                 selected={lookSeas}
                 onToggle={(v) => toggleIn(lookSeas, v, setLookSeas)}
               />

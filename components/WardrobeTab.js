@@ -900,7 +900,13 @@ export default function WardrobeTab({
       return false;
     if (skip !== "col" && cols.size && !(w.colours || []).some((c) => cols.has(c)))
       return false;
-    if (skip !== "sea" && seas.size && !seas.has(w.season)) return false;
+    if (
+      skip !== "sea" &&
+      seas.size &&
+      !seas.has(w.season) &&
+      !(w.season === "All seasons" && (seas.has("Warm weather") || seas.has("Cold weather")))
+    )
+      return false;
     if (skip !== "brand" && brands.size && !brands.has(w.brand || "")) return false;
     if (skip !== "status" && status.size && !status.has(w.status)) return false;
     if (skip !== "flags") {
@@ -1282,7 +1288,12 @@ export default function WardrobeTab({
           />
           <FilterGroup
             title="Season"
-            options={countsFor("sea", SEASONS.map((s) => [s, s]), (w, v) => w.season === v, seas)}
+            options={countsFor(
+              "sea",
+              SEASONS.map((s) => [s, s]),
+              (w, v) => w.season === v || (v !== "All seasons" && w.season === "All seasons"),
+              seas
+            )}
             selected={seas}
             onToggle={(v) => toggleIn(seas, v, setSeas)}
           />
