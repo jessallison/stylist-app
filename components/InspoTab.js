@@ -472,7 +472,18 @@ export default function InspoTab({
       return false;
     if (skip !== "col" && cols.size && !(i.colours || []).some((c) => cols.has(c)))
       return false;
-    if (skip !== "sea" && seas.size && !seas.has(i.season)) return false;
+    // "All seasons" is a superset, not just another option alongside Warm/
+    // Cold - an item tagged that way genuinely works for either, so
+    // filtering by Warm or Cold weather should surface it too. Filtering by
+    // "All seasons" itself stays an exact match (that's still the specific
+    // thing being asked for there).
+    if (
+      skip !== "sea" &&
+      seas.size &&
+      !seas.has(i.season) &&
+      !(i.season === "All seasons" && (seas.has("Warm weather") || seas.has("Cold weather")))
+    )
+      return false;
     if (skip !== "occ" && occs.size && !occs.has(i.occasion)) return false;
     return true;
   }
@@ -633,7 +644,16 @@ export default function InspoTab({
           />
           <FilterGroup
             title="Season"
-            options={countsFor("sea", SEASONS.map((s) => [s, s]), (i, v) => i.season === v, seas)}
+            options={countsFor(
+              "sea",
+              SEASONS.map((s) => [s, s]),
+              // Matches the passes() rule above - Warm/Cold's count should
+              // include "All seasons" items too, or the number shown next
+              // to the option wouldn't match what selecting it actually
+              // returns.
+              (i, v) => i.season === v || (v !== "All seasons" && i.season === "All seasons"),
+              seas
+            )}
             selected={seas}
             onToggle={(v) => toggleIn(seas, v, setSeas)}
           />
