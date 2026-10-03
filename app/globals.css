@@ -1326,7 +1326,12 @@ header.top {
 }
 
 .pack-days-input {
-  width: 56px;
+  width: 72px;
+  /* Tighter than the global input padding (9px 12px) - at the default
+     width that padding left too little room for the "days" placeholder
+     to render in full on narrow phone screens (clipped to "day…"). */
+  padding-left: 8px;
+  padding-right: 8px;
   flex: 0 0 auto;
 }
 
