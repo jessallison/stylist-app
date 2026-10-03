@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SEASONS, OCCASIONS, COLOURS, CATEGORIES, FORMALITY, COLOUR_TEXT_HEX } from "../lib/style-identity";
+import { SEASONS, OCCASIONS, COLOURS, CATEGORIES, FORMALITY } from "../lib/style-identity";
 import {
   newId,
   norm,
@@ -154,21 +154,24 @@ export default function StyleTab({
   // the only thing that reads it, so it's local state, not lifted to page.js
   // - but still persisted, the same way, since a 29-look review session is
   // exactly the kind of thing a reload shouldn't reset.
-  // Saved-looks Filters panel - same season/formality/colour facets a worn
-  // outfit uses (see outfitFacets in shared.js), since a saved look is the
-  // same item_ids shape and neither stores these directly. "Formality" is
-  // the stand-in for the "occasion" Jess originally asked for - it's the
-  // only comparable field wardrobe items actually carry; the AI's own
+  // Saved-looks Filters panel - same season/formality facets a worn outfit
+  // uses (see outfitFacets in shared.js), since a saved look is the same
+  // item_ids shape and neither stores these directly. "Formality" is the
+  // stand-in for the "occasion" Jess originally asked for - it's the only
+  // comparable field wardrobe items actually carry; the AI's own
   // "occasion" filter (above) is a generation-time input, not a per-item
   // attribute, so it can't be derived after the fact from item_ids alone.
+  // No colour filter here (unlike Wardrobe's): colour there is one item's
+  // own tag, a precise narrower; here it'd be the union of every piece in
+  // the look, which most looks match several of - low signal, and Jess's
+  // own usage skips straight from Season/Formality to the results.
   const [showLookFilters, setShowLookFilters] = useState(false);
   const [lookSeas, setLookSeas] = useState(new Set());
   const [lookForm, setLookForm] = useState(new Set());
-  const [lookCols, setLookCols] = useState(new Set());
   // Narrows Saved looks to just the pack list - separate from the
-  // season/formality/colour filters above (and from their "Clear filters"),
-  // since it's a different question: not "what kind of look is this" but
-  // "is it in the trip I'm packing right now".
+  // season/formality filters above (and from their "Clear filters"), since
+  // it's a different question: not "what kind of look is this" but "is it
+  // in the trip I'm packing right now".
   const [packOnly, setPackOnly] = useState(false);
 
   const [looksView, setLooksViewState] = useState("large");
@@ -644,8 +647,6 @@ export default function StyleTab({
       return false;
     if (skip !== "form" && lookForm.size && ![...lookForm].some((v) => f.formality.has(v)))
       return false;
-    if (skip !== "col" && lookCols.size && ![...lookCols].some((v) => f.colours.has(v)))
-      return false;
     if (packOnly && !packListIds.includes(l.id)) return false;
     return true;
   }
@@ -655,7 +656,7 @@ export default function StyleTab({
       .map((v) => [v, v, pool.filter((l) => has(lookFacets[l.id], v)).length])
       .filter(([v, , count]) => count > 0 || selected.has(v));
   };
-  const activeLookFilterCount = lookSeas.size + lookForm.size + lookCols.size;
+  const activeLookFilterCount = lookSeas.size + lookForm.size;
   const filteredLooks = looks.filter((l) => lookPasses(l, null));
 
   const flowBtn = (id, label, sub) => (
@@ -1058,13 +1059,6 @@ export default function StyleTab({
                 options={lookCountsFor("form", FORMALITY, (f, v) => f.formality.has(v), lookForm)}
                 selected={lookForm}
                 onToggle={(v) => toggleIn(lookForm, v, setLookForm)}
-              />
-              <FilterGroup
-                title="Colour"
-                options={lookCountsFor("col", COLOURS, (f, v) => f.colours.has(v), lookCols)}
-                selected={lookCols}
-                onToggle={(v) => toggleIn(lookCols, v, setLookCols)}
-                swatches={COLOUR_TEXT_HEX}
               />
             </div>
           )}
