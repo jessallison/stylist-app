@@ -58,6 +58,10 @@ export default function StyleTab({
     justMe: false,
   });
   const [busy, setBusy] = useState(false);
+  // Progress through a "pack for a trip" run (runPacking below) - several
+  // small requests rather than one big one, so there's genuine progress to
+  // show rather than one long silent wait.
+  const [packProgress, setPackProgress] = useState(null);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -267,6 +271,93 @@ export default function StyleTab({
       else setResult({ ...j, flow: f, image: body.image });
     } catch {
       setError("Something went wrong - try again");
+    }
+    setBusy(false);
+  }
+
+  // "Pack for a trip" asks for more outfits than the ordinary call ever
+  // has, and one AI call for a whole week's worth risked outrunning
+  // Vercel's function time limit - the connection just gets dropped, which
+  // lands here as a bare "Something went wrong" with no real error to show
+  // for it. Fixed by breaking the trip into several small requests, each
+  // sized the same as the ordinary 3-outfit call (which has always come
+  // back reliably fast), run one after another. Each batch is told which
+  // pieces earlier batches already used, so the trip still reads as a
+  // small reusable set rather than several unrelated ones stitched
+  // together - see packReuseIds server-side.
+  const PACK_BATCH_SIZE = 3;
+
+  async function runPacking() {
+    if (!unlocked) {
+      needAuth();
+      return;
+    }
+    const totalDays = Math.max(1, Math.min(7, Math.floor(Number(filters.days) || 0)));
+    const totalOutfits = totalDays * 2;
+    setBusy(true);
+    setLoadingMsgIdx(Math.floor(Math.random() * STYLING_MESSAGES.length));
+    setError(null);
+    setResult(null);
+    setDismissed(new Set());
+    setPackProgress({ done: 0, total: totalOutfits });
+    setTimeout(() => {
+      resultsAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+
+    const weatherBody =
+      weather && home
+        ? {
+            city: home.city,
+            tempC: weather.tempC,
+            feelsC: weather.feelsC,
+            highC: weather.highC,
+            lowC: weather.lowC,
+            rainProb: weather.rainProb,
+            description: weather.description,
+            wet: weather.wet,
+          }
+        : undefined;
+
+    const allOutfits = [];
+    const notes = [];
+    let remaining = totalOutfits;
+
+    while (remaining > 0) {
+      const batchSize = Math.min(PACK_BATCH_SIZE, remaining);
+      try {
+        const res = await fetch("/api/suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
+          body: JSON.stringify({
+            flow: "B",
+            filters: {
+              ...filters,
+              packCount: batchSize,
+              packReuseIds: [...new Set(allOutfits.flatMap((o) => o.item_ids))],
+            },
+            weather: weatherBody,
+          }),
+        });
+        const j = await res.json();
+        if (!res.ok) {
+          if (allOutfits.length === 0) setError(j.error || "Something went wrong");
+          else notes.push("Couldn't finish the rest of the trip - try again to fill it out.");
+          break;
+        }
+        allOutfits.push(...(j.outfits || []));
+        if (j.overall_note) notes.push(j.overall_note);
+        remaining -= batchSize;
+        setPackProgress({ done: allOutfits.length, total: totalOutfits });
+      } catch {
+        if (allOutfits.length === 0) setError("Something went wrong - try again");
+        else notes.push("Couldn't finish the rest of the trip - try again to fill it out.");
+        break;
+      }
+    }
+
+    setPackProgress(null);
+    if (allOutfits.length) {
+      setResult({ outfits: allOutfits, overall_note: [...new Set(notes)].join(" "), flow: "B" });
     }
     setBusy(false);
   }
@@ -525,6 +616,8 @@ export default function StyleTab({
     </button>
   );
 
+  const isPacking = flow === "B" && Number(filters.days) > 0;
+
   return (
     <div>
       {!data.ai && (
@@ -678,12 +771,12 @@ export default function StyleTab({
               that fallback unreachable from here. */}
           <button
             className="btn"
-            onClick={() => run()}
+            onClick={() => (isPacking ? runPacking() : run())}
             disabled={busy || (flow === "A" && !data.ai)}
           >
             {busy
               ? "Styling…"
-              : flow === "B" && Number(filters.days) > 0
+              : isPacking
                 ? `Pack ${Number(filters.days) * 2} outfits`
                 : "Style me"}
           </button>
@@ -723,15 +816,22 @@ export default function StyleTab({
       )}
 
       <div ref={resultsAnchorRef}>
+      {busy && packProgress && (
+        <div className="weather-note" style={{ marginBottom: 8 }}>
+          Packed {packProgress.done} of {packProgress.total} outfits so far…
+        </div>
+      )}
       {busy && (
         <StylingLoader
           message={STYLING_MESSAGES[loadingMsgIdx]}
           heading={
-            flow === "C"
-              ? `Styling ${anchorId && byId[anchorId] ? byId[anchorId].name : "your new piece"}`
-              : flow === "A"
-                ? "Matching your inspo"
-                : "Styling from your wardrobe"
+            packProgress
+              ? "Packing for your trip"
+              : flow === "C"
+                ? `Styling ${anchorId && byId[anchorId] ? byId[anchorId].name : "your new piece"}`
+                : flow === "A"
+                  ? "Matching your inspo"
+                  : "Styling from your wardrobe"
           }
           thumb={
             flow === "C"
@@ -777,7 +877,11 @@ export default function StyleTab({
             <div className="empty">That was everything from this round.</div>
           )}
           <div className="try-again-row">
-            <button className="chip" onClick={() => run()} disabled={busy}>
+            <button
+              className="chip"
+              onClick={() => (isPacking ? runPacking() : run())}
+              disabled={busy}
+            >
               {busy ? "Styling…" : "Let's try some other options"}
             </button>
           </div>

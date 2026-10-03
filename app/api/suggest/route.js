@@ -255,14 +255,21 @@ export async function POST(request) {
     );
   }
 
-  // "Pack for a trip": an optional day count on flow B's ordinary filters,
-  // asking for two outfits per day (morning/evening - which is which is
-  // left for them to decide afterwards) instead of the usual fixed set,
-  // with the AI steered towards reusing the same core pieces across them.
-  // Capped at 7 days / 14 outfits so one call stays a sane size.
-  const days = flow === "B" ? Math.max(0, Math.min(7, Math.floor(Number(filters.days) || 0))) : 0;
-  const packing = days > 0;
-  const outfitCount = packing ? days * 2 : 3;
+  // "Pack for a trip": the client (StyleTab.js's runPacking) breaks a
+  // whole trip into several small requests like this one rather than
+  // asking for every outfit in a single call - a request for a week's
+  // worth of outfits in one go risked outrunning Vercel's function time
+  // limit and having the connection dropped entirely, which read to the
+  // person as a bare "Something went wrong" with no real error behind it.
+  // Capped at the same size as the ordinary 3-outfit call below, which has
+  // always come back reliably fast, so this never risks the same thing.
+  // packReuseIds (pieces already used elsewhere in the trip, from earlier
+  // batches) steers this batch to keep building around them rather than
+  // reaching for different items for the same role each time.
+  const packCount =
+    flow === "B" ? Math.max(0, Math.min(3, Math.floor(Number(filters.packCount) || 0))) : 0;
+  const packing = packCount > 0;
+  const outfitCount = packing ? packCount : 3;
 
   let wardrobe, inspo, styleProfile, settings, feedback, looks;
   try {
@@ -474,10 +481,18 @@ export async function POST(request) {
   if (filters.season) filterLines.push(`Season: ${filters.season}`);
   if (filters.occasion) filterLines.push(`Occasion: ${filters.occasion}`);
   if (filters.colour) filterLines.push(`Colour focus: ${filters.colour}`);
-  if (packing)
+  if (packing) {
+    const packReuseIds = Array.isArray(filters.packReuseIds) ? filters.packReuseIds : [];
+    const reuseNames = packReuseIds
+      .filter((id) => wearableIds.has(id))
+      .map(nameOf)
+      .slice(0, 12);
     filterLines.push(
-      `Packing for a ${days}-day trip - build ${outfitCount} outfits (two per day, morning and evening; which is which is their call to make afterwards, not something to label). Reuse the same core pieces across as many of these as make sense rather than treating each outfit independently - the goal is a small set of pieces that recombines well, not ${outfitCount} unrelated looks. Still keep outfits visually distinct from each other despite the reuse.`
+      reuseNames.length
+        ? `Packing for a trip, as part of a bigger set of outfits (this is one batch of it) - these pieces are already used elsewhere in the trip, so prefer building around them again where they genuinely fit rather than reaching for different items for the same role: ${reuseNames.join(", ")}. The goal across the whole trip is a small set of pieces that recombines well, not a pile of unrelated looks - but still keep what you return here visually distinct, outfit to outfit.`
+        : `Packing for a trip, as part of a bigger set of outfits (this is the first batch of it) - lean towards a small, versatile set of pieces that could recombine into further outfits beyond this batch, rather than reaching for a different item for every role.`
     );
+  }
   if (filters.justMe)
     filterLines.push(
       `"Just me" - no occasion at all. Dress for their own pleasure: their Saturday-morning self, how they look when nobody needs them to look like anything.`
