@@ -1314,6 +1314,41 @@ header.top {
   margin-left: auto;
 }
 
+/* "Pack for a trip" day input, under the main filter row on Style me
+   (flow B only) - a label wrapping a small number input, plus a note once
+   a day count is actually set. */
+.pack-days-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.pack-days-input {
+  width: 56px;
+  flex: 0 0 auto;
+}
+
+/* "What to pack" rollup above Saved looks' filter panel, once anything's
+   in the pack list - the summary text and "Clear pack list" stay on one
+   line on wider screens, stack on phone widths via .row's own wrap. */
+.pack-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -4px 0 16px;
+}
+
+.pack-summary .section-sub {
+  margin: 0;
+}
+
+.pack-summary .chip {
+  flex: 0 0 auto;
+}
+
 /* On phone widths the three capped-width selects above wrap unevenly across
    two-and-a-bit lines instead of forming a clean bar. Switch to a two-column
    grid instead: each select spans both columns (one per line, full width),

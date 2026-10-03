@@ -161,6 +161,11 @@ export default function StyleTab({
   const [lookSeas, setLookSeas] = useState(new Set());
   const [lookForm, setLookForm] = useState(new Set());
   const [lookCols, setLookCols] = useState(new Set());
+  // Narrows Saved looks to just the pack list - separate from the
+  // season/formality/colour filters above (and from their "Clear filters"),
+  // since it's a different question: not "what kind of look is this" but
+  // "is it in the trip I'm packing right now".
+  const [packOnly, setPackOnly] = useState(false);
 
   const [looksView, setLooksViewState] = useState("large");
   useEffect(() => {
@@ -327,6 +332,39 @@ export default function StyleTab({
     const ok = await save("looks", (cur) => [...(cur || []), look]);
     if (ok) flash(`"${o.title}" saved to your looks`);
     else if (anchorPhotoId) deleteImage(adminKey, anchorPhotoId);
+    return ok ? look.id : null;
+  }
+
+  // The pack list is a single standing list (not one per trip) of saved-
+  // look ids, stored as settings.packListIds rather than a field on each
+  // look - keeps it a trip-planning concern layered on top of looks,
+  // not an attribute of the look itself. "Clear pack list" is just
+  // resetting it to empty once the trip's done.
+  const packListIds = data.settings?.packListIds || [];
+
+  async function togglePacked(lookId) {
+    if (!unlocked) {
+      needAuth();
+      return;
+    }
+    const cur = data.settings?.packListIds || [];
+    const next = cur.includes(lookId) ? cur.filter((id) => id !== lookId) : [...cur, lookId];
+    await save("settings", (s) => ({ ...s, packListIds: next }));
+  }
+
+  async function clearPackList() {
+    if (!unlocked) {
+      needAuth();
+      return;
+    }
+    await save("settings", (s) => ({ ...s, packListIds: [] }));
+  }
+
+  // For a fresh, not-yet-saved suggestion: save it then pack it in one
+  // step, same as ticking "Save this look" followed by the pack toggle.
+  async function addToPackList(o) {
+    const id = await saveLook(o);
+    if (id) await togglePacked(id);
   }
 
   // Feedback on a fresh suggestion. Stored per-outfit but mined pair-by-pair
@@ -460,6 +498,7 @@ export default function StyleTab({
       return false;
     if (skip !== "col" && lookCols.size && ![...lookCols].some((v) => f.colours.has(v)))
       return false;
+    if (packOnly && !packListIds.includes(l.id)) return false;
     return true;
   }
   const lookCountsFor = (group, values, has, selected) => {
@@ -642,7 +681,11 @@ export default function StyleTab({
             onClick={() => run()}
             disabled={busy || (flow === "A" && !data.ai)}
           >
-            {busy ? "Styling…" : "Style me"}
+            {busy
+              ? "Styling…"
+              : flow === "B" && Number(filters.days) > 0
+                ? `Pack ${Number(filters.days) * 2} outfits`
+                : "Style me"}
           </button>
           <button
             className={`chip yolo-btn ${filters.justMe ? "sel" : ""}`}
@@ -654,6 +697,28 @@ export default function StyleTab({
             ✦ YOLO MODE
           </button>
         </div>
+        {flow === "B" && (
+          <div className="row pack-row">
+            <label className="pack-days-label">
+              Pack for a trip
+              <input
+                type="number"
+                min="0"
+                max="7"
+                placeholder="days"
+                value={filters.days || ""}
+                onChange={(e) => setFilters({ ...filters, days: e.target.value })}
+                className="pack-days-input"
+              />
+            </label>
+            {Number(filters.days) > 0 && (
+              <span className="weather-note">
+                {Number(filters.days) * 2} outfits (morning + evening per day), reusing pieces
+                across the trip where it can
+              </span>
+            )}
+          </div>
+        )}
       </div>
       )}
 
@@ -693,6 +758,9 @@ export default function StyleTab({
                   <>
                     <button className="chip" onClick={() => saveLook(o)}>
                       Save this look
+                    </button>
+                    <button className="chip" onClick={() => addToPackList(o)}>
+                      Add to pack list
                     </button>
                     <button className="chip" onClick={() => loveThis(o)}>
                       Love this
@@ -762,7 +830,38 @@ export default function StyleTab({
                 Clear filters
               </button>
             )}
+            <button
+              type="button"
+              className={`chip ${packOnly ? "sel" : ""}`}
+              disabled={packListIds.length === 0}
+              onClick={() => setPackOnly(!packOnly)}
+            >
+              Pack list ({packListIds.length})
+            </button>
           </div>
+          {packListIds.length > 0 && (
+            <div className="pack-summary">
+              <div className="section-sub">
+                Packing ({packListIds.length} {packListIds.length === 1 ? "look" : "looks"}):{" "}
+                {sortItemIdsByCategory(
+                  [
+                    ...new Set(
+                      looks
+                        .filter((l) => packListIds.includes(l.id))
+                        .flatMap((l) => l.item_ids)
+                    ),
+                  ].filter((id) => id !== "NEW"),
+                  byId
+                )
+                  .map((id) => byId[id]?.name)
+                  .filter(Boolean)
+                  .join(", ") || "Nothing catalogued to pack yet."}
+              </div>
+              <button type="button" className="chip" onClick={clearPackList}>
+                Clear pack list
+              </button>
+            </div>
+          )}
           {showLookFilters && (
             <div className="filter-panel">
               <FilterGroup
@@ -806,6 +905,12 @@ export default function StyleTab({
                     onDismissGap={(gapIndex) => dismissGap(l.id, gapIndex)}
                     actions={
                       <>
+                        <button
+                          className={`chip ${packListIds.includes(l.id) ? "sel" : ""}`}
+                          onClick={() => togglePacked(l.id)}
+                        >
+                          {packListIds.includes(l.id) ? "In pack list ✓" : "Add to pack list"}
+                        </button>
                         <button className="chip" onClick={() => renameLook(l)}>
                           Rename
                         </button>

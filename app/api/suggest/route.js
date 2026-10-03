@@ -35,13 +35,14 @@ function itemLine(w) {
 // back to the model: the most recent feedback first, deduped, capped, and
 // limited to pieces still actually in the wearable pool (a piece that's
 // been sold or gone out of rotation can't reappear anyway).
-function deriveFeedbackPairs(feedback, verdict, validIds, cap) {
-  const seen = new Map();
-  const entries = (feedback || [])
-    .filter((f) => f.verdict === verdict)
-    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  for (const f of entries) {
-    const ids = (f.itemIds || []).filter((id) => validIds.has(id));
+// Shared by deriveFeedbackPairs below (feedback entries) and the saved-
+// looks mining in the main handler (looks need no verdict - saving one is
+// itself the positive signal). Takes a `seen` map so callers can mine
+// several sources into one capped pool rather than capping each separately
+// and letting one source crowd out another.
+function minePairs(idLists, validIds, cap, seen = new Map()) {
+  for (const rawIds of idLists) {
+    const ids = (rawIds || []).filter((id) => validIds.has(id));
     for (let i = 0; i < ids.length && seen.size < cap; i++) {
       for (let j = i + 1; j < ids.length && seen.size < cap; j++) {
         const key = [ids[i], ids[j]].sort().join("|");
@@ -50,7 +51,15 @@ function deriveFeedbackPairs(feedback, verdict, validIds, cap) {
     }
     if (seen.size >= cap) break;
   }
-  return [...seen.values()];
+  return seen;
+}
+
+function deriveFeedbackPairs(feedback, verdict, validIds, cap) {
+  const entries = (feedback || [])
+    .filter((f) => f.verdict === verdict)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .map((f) => f.itemIds);
+  return [...minePairs(entries, validIds, cap).values()];
 }
 
 function identityText(s) {
@@ -246,14 +255,24 @@ export async function POST(request) {
     );
   }
 
-  let wardrobe, inspo, styleProfile, settings, feedback;
+  // "Pack for a trip": an optional day count on flow B's ordinary filters,
+  // asking for two outfits per day (morning/evening - which is which is
+  // left for them to decide afterwards) instead of the usual fixed set,
+  // with the AI steered towards reusing the same core pieces across them.
+  // Capped at 7 days / 14 outfits so one call stays a sane size.
+  const days = flow === "B" ? Math.max(0, Math.min(7, Math.floor(Number(filters.days) || 0))) : 0;
+  const packing = days > 0;
+  const outfitCount = packing ? days * 2 : 3;
+
+  let wardrobe, inspo, styleProfile, settings, feedback, looks;
   try {
-    [wardrobe, inspo, styleProfile, settings, feedback] = await Promise.all([
+    [wardrobe, inspo, styleProfile, settings, feedback, looks] = await Promise.all([
       getData("wardrobe"),
       getData("inspo"),
       getData("styleProfile"),
       getData("settings"),
       getData("feedback"),
+      getData("looks"),
     ]);
   } catch (e) {
     console.error("suggest data error", e);
@@ -290,7 +309,17 @@ export async function POST(request) {
   const wearableIds = new Set(wearable.map((w) => w.id));
   const nameOf = (id) => wearable.find((w) => w.id === id)?.name || id;
   const avoidPairs = deriveFeedbackPairs(feedback, "not_for_me", wearableIds, 15);
-  const lovedPairs = deriveFeedbackPairs(feedback, "loved", wearableIds, 15);
+  // "Loved" signal comes from two sources: explicit "Love this" taps, and
+  // every saved look - keeping an outfit is itself a standing "I like this"
+  // signal, with no separate tap needed. Both are mined into one capped
+  // pool so neither source crowds out the other.
+  const lovedFeedbackIds = feedback
+    .filter((f) => f.verdict === "loved")
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .map((f) => f.itemIds);
+  const lovedSeen = minePairs(lovedFeedbackIds, wearableIds, 15);
+  minePairs(looks.map((l) => l.item_ids), wearableIds, 15, lovedSeen);
+  const lovedPairs = [...lovedSeen.values()];
   const avoidLines = avoidPairs.map(([a, b]) => `- ${nameOf(a)} + ${nameOf(b)}`);
   const lovedLines = lovedPairs.map(([a, b]) => `- ${nameOf(a)} + ${nameOf(b)}`);
 
@@ -387,7 +416,13 @@ export async function POST(request) {
         { status: 503 }
       );
     }
-    const randomOutfits = buildRandomOutfits({ pool, anchor, filters, hardExcludePairs, count: 3 }).filter(
+    const randomOutfits = buildRandomOutfits({
+      pool,
+      anchor,
+      filters,
+      hardExcludePairs,
+      count: outfitCount,
+    }).filter(
       (o) =>
         o.item_ids.length >= 2 &&
         ONE_PER_OUTFIT_CATEGORIES.every(
@@ -439,6 +474,10 @@ export async function POST(request) {
   if (filters.season) filterLines.push(`Season: ${filters.season}`);
   if (filters.occasion) filterLines.push(`Occasion: ${filters.occasion}`);
   if (filters.colour) filterLines.push(`Colour focus: ${filters.colour}`);
+  if (packing)
+    filterLines.push(
+      `Packing for a ${days}-day trip - build ${outfitCount} outfits (two per day, morning and evening; which is which is their call to make afterwards, not something to label). Reuse the same core pieces across as many of these as make sense rather than treating each outfit independently - the goal is a small set of pieces that recombines well, not ${outfitCount} unrelated looks. Still keep outfits visually distinct from each other despite the reuse.`
+    );
   if (filters.justMe)
     filterLines.push(
       `"Just me" - no occasion at all. Dress for their own pleasure: their Saturday-morning self, how they look when nobody needs them to look like anything.`
@@ -529,7 +568,7 @@ Reply with ONLY a JSON object:
   ],
   "overall_note": "optional single stylist's remark, or empty string"
 }
-Return 3 outfits (2 if the wardrobe genuinely can't support 3 good ones).`;
+Return ${outfitCount} outfits (fewer if the wardrobe genuinely can't support that many good ones).`;
 
   const userText = `OWNED WARDROBE (currently wearable):
 ${pool.map(itemLine).join("\n")}
@@ -558,10 +597,15 @@ ${flowText}`;
   content.push({ type: "text", text: userText });
 
   try {
+    // Each outfit costs on the order of a few hundred tokens of JSON -
+    // scaled up for packing's bigger outfit count (capped well under what
+    // a single call can return) so a big trip doesn't risk a response
+    // that gets cut off partway through.
+    const maxTokens = Math.min(8000, Math.max(2500, 500 + outfitCount * 500));
     const text = await claude({
       system,
       messages: [{ role: "user", content }],
-      maxTokens: 2500,
+      maxTokens,
     });
     const result = parseJson(text);
 
