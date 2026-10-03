@@ -392,13 +392,32 @@ export default function StyleTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request]);
 
+  // Same combo of items, regardless of order, counts as the same look -
+  // dedupe on that rather than title, since a re-roll can suggest an
+  // identical outfit under a different name. A "NEW" (uncatalogued) anchor
+  // never matches: the literal id is shared by every uncatalogued photo, so
+  // two different NEW anchors with the same rest-of-outfit would otherwise
+  // look like duplicates when they aren't.
+  function findExistingLook(itemIds) {
+    if (!itemIds || itemIds.includes("NEW")) return null;
+    const key = itemIds.slice().sort().join("|");
+    return (data.looks || []).find(
+      (l) => (l.item_ids || []).slice().sort().join("|") === key
+    );
+  }
+
   // Keep a suggestion around: item ids + the stylist's reasoning. If the
   // outfit was built on an uncatalogued "NEW" anchor, its photo is copied
   // into the image store so the look still renders later.
-  async function saveLook(o) {
+  async function saveLook(o, { silent } = {}) {
     if (!unlocked) {
       needAuth();
       return;
+    }
+    const existing = findExistingLook(o.item_ids);
+    if (existing) {
+      if (!silent) flash(`Already saved as "${existing.title}"`);
+      return existing.id;
     }
     let anchorPhotoId;
     if (o.item_ids.includes("NEW") && result?.image) {
@@ -421,8 +440,9 @@ export default function StyleTab({
       savedAt: Date.now(),
     };
     const ok = await save("looks", (cur) => [...(cur || []), look]);
-    if (ok) flash(`"${o.title}" saved to your looks`);
-    else if (anchorPhotoId) deleteImage(adminKey, anchorPhotoId);
+    if (ok) {
+      if (!silent) flash(`"${o.title}" saved to your looks`);
+    } else if (anchorPhotoId) deleteImage(adminKey, anchorPhotoId);
     return ok ? look.id : null;
   }
 
@@ -432,6 +452,26 @@ export default function StyleTab({
   // not an attribute of the look itself. "Clear pack list" is just
   // resetting it to empty once the trip's done.
   const packListIds = data.settings?.packListIds || [];
+
+  // What-to-pack display groups items under their wardrobe category
+  // (same head-to-toe order as an outfit card) rather than one run-on
+  // sentence - a packing list reads the way a person actually packs,
+  // by type, not as prose.
+  function groupPackItemsByCategory(itemIds, byId) {
+    const groups = [];
+    let current = null;
+    for (const id of sortItemIdsByCategory(itemIds, byId)) {
+      const name = byId[id]?.name;
+      if (!name) continue;
+      const category = byId[id]?.category || "Other";
+      if (!current || current.category !== category) {
+        current = { category, names: [] };
+        groups.push(current);
+      }
+      current.names.push(name);
+    }
+    return groups;
+  }
 
   async function togglePacked(lookId) {
     if (!unlocked) {
@@ -454,8 +494,20 @@ export default function StyleTab({
   // For a fresh, not-yet-saved suggestion: save it then pack it in one
   // step, same as ticking "Save this look" followed by the pack toggle.
   async function addToPackList(o) {
-    const id = await saveLook(o);
-    if (id) await togglePacked(id);
+    const existing = findExistingLook(o.item_ids);
+    const id = await saveLook(o, { silent: true });
+    if (!id) return;
+    const wasPacked = packListIds.includes(id);
+    if (!wasPacked) await togglePacked(id);
+    if (existing) {
+      flash(
+        wasPacked
+          ? `"${existing.title}" is already saved and packed`
+          : `"${existing.title}" already saved - added to pack list`
+      );
+    } else {
+      flash(`"${o.title}" saved and packed`);
+    }
   }
 
   // Feedback on a fresh suggestion. Stored per-outfit but mined pair-by-pair
@@ -514,6 +566,11 @@ export default function StyleTab({
     }
     if (manualIds.length < 1) {
       flash("Pick at least one piece first");
+      return;
+    }
+    const existing = findExistingLook(manualIds);
+    if (existing) {
+      flash(`Already saved as "${existing.title}"`);
       return;
     }
     setManualSaving(true);
@@ -945,9 +1002,16 @@ export default function StyleTab({
           </div>
           {packListIds.length > 0 && (
             <div className="pack-summary">
-              <div className="section-sub">
-                Packing ({packListIds.length} {packListIds.length === 1 ? "look" : "looks"}):{" "}
-                {sortItemIdsByCategory(
+              <div className="pack-summary-head">
+                <div className="section-sub">
+                  Packing ({packListIds.length} {packListIds.length === 1 ? "look" : "looks"})
+                </div>
+                <button type="button" className="chip" onClick={clearPackList}>
+                  Clear pack list
+                </button>
+              </div>
+              {(() => {
+                const groups = groupPackItemsByCategory(
                   [
                     ...new Set(
                       looks
@@ -956,14 +1020,24 @@ export default function StyleTab({
                     ),
                   ].filter((id) => id !== "NEW"),
                   byId
-                )
-                  .map((id) => byId[id]?.name)
-                  .filter(Boolean)
-                  .join(", ") || "Nothing catalogued to pack yet."}
-              </div>
-              <button type="button" className="chip" onClick={clearPackList}>
-                Clear pack list
-              </button>
+                );
+                return groups.length > 0 ? (
+                  <div className="pack-groups">
+                    {groups.map((g) => (
+                      <div className="pack-group" key={g.category}>
+                        <div className="pack-group-title">{g.category}</div>
+                        <ul className="pack-group-list">
+                          {g.names.map((name, i) => (
+                            <li key={`${g.category}-${i}`}>{name}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty">Nothing catalogued to pack yet.</div>
+                );
+              })()}
             </div>
           )}
           {showLookFilters && (

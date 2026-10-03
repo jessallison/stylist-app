@@ -1331,14 +1331,19 @@ header.top {
 }
 
 /* "What to pack" rollup above Saved looks' filter panel, once anything's
-   in the pack list - the summary text and "Clear pack list" stay on one
-   line on wider screens, stack on phone widths via .row's own wrap. */
+   in the pack list - a heading row ("Packing (N looks)" + Clear pack list)
+   above a set of category groups, each a heading and a bulleted list, so
+   the list reads the way a person actually packs (by type) rather than as
+   one run-on sentence. */
 .pack-summary {
+  margin: -4px 0 16px;
+}
+
+.pack-summary-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin: -4px 0 16px;
 }
 
 .pack-summary .section-sub {
@@ -1347,6 +1352,37 @@ header.top {
 
 .pack-summary .chip {
   flex: 0 0 auto;
+}
+
+.pack-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  margin-top: 8px;
+}
+
+.pack-group {
+  min-width: 140px;
+}
+
+.pack-group-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.pack-group-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.pack-group-list li {
+  margin-bottom: 2px;
 }
 
 /* On phone widths the three capped-width selects above wrap unevenly across
