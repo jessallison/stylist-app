@@ -298,7 +298,21 @@ export default function StyleTab({
         body: JSON.stringify(body),
         signal: controller.signal,
       });
-      const j = await res.json();
+      let j;
+      try {
+        j = await res.json();
+      } catch {
+        // A platform-level timeout or dropped connection comes back as a
+        // non-JSON error page rather than one of our own { error } bodies -
+        // res.json() throws on that, which used to fall into the catch
+        // below and show the same generic message as an actual network
+        // failure. Worth telling apart: this one almost always means the
+        // request simply ran too long.
+        setError("That took too long to come back - try again");
+        abortRef.current = null;
+        setBusy(false);
+        return;
+      }
       if (!res.ok) setError(j.error || "Something went wrong");
       else setResult({ ...j, flow: f, image: body.image });
     } catch (err) {
@@ -397,7 +411,16 @@ export default function StyleTab({
           }),
           signal: controller.signal,
         });
-        const j = await res.json();
+        let j;
+        try {
+          j = await res.json();
+        } catch {
+          // Same non-JSON-body case as run() above - a platform timeout or
+          // dropped connection, not one of our own { error } responses.
+          if (allOutfits.length === 0) setError("That took too long to come back - try again");
+          else notes.push("Couldn't finish the rest of the trip - try again to fill it out.");
+          break;
+        }
         if (!res.ok) {
           if (allOutfits.length === 0) setError(j.error || "Something went wrong");
           else notes.push("Couldn't finish the rest of the trip - try again to fill it out.");
