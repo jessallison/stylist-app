@@ -481,16 +481,26 @@ export async function POST(request) {
   if (filters.season) filterLines.push(`Season: ${filters.season}`);
   if (filters.occasion) filterLines.push(`Occasion: ${filters.occasion}`);
   if (filters.colour) filterLines.push(`Colour focus: ${filters.colour}`);
+  // packReuseIds also arrives outside a batch run: styling a single anchor
+  // piece (flow C) while a pack list is already underway sends the items
+  // already packed, so a one-off suggestion doesn't clash with - or
+  // needlessly duplicate the role of - something already committed to the
+  // trip. Same field, two callers; only the batch wording claims to be
+  // "part of a bigger set".
+  const packReuseIds = Array.isArray(filters.packReuseIds) ? filters.packReuseIds : [];
+  const reuseNames = packReuseIds
+    .filter((id) => wearableIds.has(id))
+    .map(nameOf)
+    .slice(0, 12);
   if (packing) {
-    const packReuseIds = Array.isArray(filters.packReuseIds) ? filters.packReuseIds : [];
-    const reuseNames = packReuseIds
-      .filter((id) => wearableIds.has(id))
-      .map(nameOf)
-      .slice(0, 12);
     filterLines.push(
       reuseNames.length
         ? `Packing for a trip, as part of a bigger set of outfits (this is one batch of it) - these pieces are already used elsewhere in the trip, so prefer building around them again where they genuinely fit rather than reaching for different items for the same role: ${reuseNames.join(", ")}. The goal across the whole trip is a small set of pieces that recombines well, not a pile of unrelated looks - but still keep what you return here visually distinct, outfit to outfit.`
         : `Packing for a trip, as part of a bigger set of outfits (this is the first batch of it) - lean towards a small, versatile set of pieces that could recombine into further outfits beyond this batch, rather than reaching for a different item for every role.`
+    );
+  } else if (reuseNames.length) {
+    filterLines.push(
+      `Already packed for this trip: ${reuseNames.join(", ")}. Where it genuinely fits, prefer building this outfit around one or more of these rather than reaching for a different item in the same role, so the trip doesn't end up needing more than it has to.`
     );
   }
   if (filters.justMe)

@@ -661,6 +661,28 @@ header.top {
   letter-spacing: 0.04em;
 }
 
+/* Wardrobe's "you're mid-trip" cue, shown whenever the pack list (built on
+   Style me / Saved looks) isn't empty - same accent as the active "sel"
+   chips elsewhere, so it reads as a live mode rather than a warning. */
+.pack-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+}
+
+.pack-mode-banner .chip {
+  flex: 0 0 auto;
+  background: var(--accent-ink);
+  color: var(--accent);
+  border-color: var(--accent-ink);
+}
+
 /* --- Filter panel ----------------------------------------------------------- */
 
 .filter-panel {

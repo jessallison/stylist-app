@@ -210,9 +210,30 @@ export default function StyleTab({
       return;
     }
     const f = overrides.flow || flow;
+    // Styling a specific anchor piece while a trip's already underway:
+    // steer the suggestion to reuse what's already packed (same
+    // packReuseIds field the "Pack for a trip" batch uses) rather than
+    // handing back something that clashes with - or duplicates the role
+    // of - a piece already committed to the trip. Only flow C (a single
+    // anchored piece) does this; the batch flow manages its own reuse set
+    // across its own run, and an unanchored "Style me" isn't building
+    // around any one piece for this to attach to.
+    const packReuseIds =
+      f === "C" && packListIds.length > 0
+        ? [
+            ...new Set(
+              looks
+                .filter((l) => packListIds.includes(l.id))
+                .flatMap((l) => l.item_ids)
+            ),
+          ].filter((id) => id !== "NEW")
+        : [];
     const body = {
       flow: f,
-      filters: overrides.filters || filters,
+      filters: {
+        ...(overrides.filters || filters),
+        ...(packReuseIds.length > 0 ? { packReuseIds } : {}),
+      },
       inspoId: f === "A" ? overrides.inspoId ?? inspoId : undefined,
       anchorId: f === "C" ? overrides.anchorId ?? anchorId : undefined,
       image: overrides.image !== undefined ? overrides.image : image,

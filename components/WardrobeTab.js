@@ -936,6 +936,20 @@ export default function WardrobeTab({
   const activeCount =
     cats.size + tagsSel.size + brands.size + cols.size + seas.size + status.size + flags.size;
 
+  // Mirrors Style me's pack list (settings.packListIds) so scanning the
+  // wardrobe while mid-trip stays visibly "packing mode", not just an
+  // ordinary browse - see the StyleTab "Pack for a trip" / pack list
+  // feature this reads from. Clearing here is the same action as Saved
+  // looks' "Clear pack list" button, just reachable without switching tabs.
+  const packListIds = data.settings?.packListIds || [];
+  async function clearPackList() {
+    if (!unlocked) {
+      needAuth();
+      return;
+    }
+    await save("settings", (s) => ({ ...s, packListIds: [] }));
+  }
+
   // Shuffle: picks from whatever's currently shown and wearable, respecting
   // active search/filters.
   const luckyPool = shown.filter(
@@ -969,6 +983,16 @@ export default function WardrobeTab({
       <div className="count">
         {ownedCount} pieces owned · {wardrobe.length - ownedCount} wanted
       </div>
+      {packListIds.length > 0 && (
+        <div className="pack-mode-banner">
+          <span>
+            Packing for a trip ({packListIds.length} {packListIds.length === 1 ? "look" : "looks"})
+          </span>
+          <button type="button" className="chip" onClick={clearPackList}>
+            Clear
+          </button>
+        </div>
+      )}
       {categoryCounts.length > 1 && (
         <div className="chip-pick" style={{ marginBottom: 12 }}>
           <button
