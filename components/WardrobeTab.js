@@ -942,7 +942,13 @@ export default function WardrobeTab({
   // ordinary browse - see the StyleTab "Pack for a trip" / pack list
   // feature this reads from. Clearing here is the same action as Saved
   // looks' "Clear pack list" button, just reachable without switching tabs.
-  const packListIds = data.settings?.packListIds || [];
+  //
+  // Filtered to ids that still match a saved look - same self-healing as
+  // StyleTab.js's packListIds, so this banner's count can't drift from
+  // what's actually packed if a look gets deleted while it's in the list.
+  const packListIds = (data.settings?.packListIds || []).filter((id) =>
+    (data.looks || []).some((l) => l.id === id)
+  );
   // Same undo-via-toast as Saved looks' "Clear pack list" (StyleTab.js) -
   // see its comment for why. Snapshots packListIds up front for the same
   // stale-closure reason.

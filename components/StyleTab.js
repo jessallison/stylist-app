@@ -551,7 +551,16 @@ export default function StyleTab({
   // look - keeps it a trip-planning concern layered on top of looks,
   // not an attribute of the look itself. "Clear pack list" is just
   // resetting it to empty once the trip's done.
-  const packListIds = data.settings?.packListIds || [];
+  //
+  // Filtered down to ids that still match a saved look: removeLook() prunes
+  // packListIds when you delete a packed look, but this also self-heals any
+  // id that went stale before that existed (or some other path manages to
+  // orphan one) - without it, "Packing (N looks)" counts dead ids that no
+  // card can ever represent, so the number on screen stops matching what's
+  // actually there to look at.
+  const packListIds = (data.settings?.packListIds || []).filter((id) =>
+    (data.looks || []).some((l) => l.id === id)
+  );
 
   // What-to-pack display groups items under their wardrobe category
   // (same head-to-toe order as an outfit card) rather than one run-on
@@ -712,6 +721,15 @@ export default function StyleTab({
     const ok = await save("looks", (cur) =>
       (cur || []).filter((l) => l.id !== look.id)
     );
+    // Drop it from the pack list too if it was in one - otherwise the id
+    // lingers in settings.packListIds with no look left to match it, and
+    // "Packing (N looks)" keeps counting a card that can never show again.
+    if (ok && (data.settings?.packListIds || []).includes(look.id)) {
+      await save("settings", (s) => ({
+        ...s,
+        packListIds: (s.packListIds || []).filter((id) => id !== look.id),
+      }));
+    }
     if (ok && look.anchorPhotoId) deleteImage(adminKey, look.anchorPhotoId);
   }
 
