@@ -1118,6 +1118,27 @@ export default function StyleTab({
               Pack list ({packListIds.length})
             </button>
           </div>
+          {showLookFilters && (
+            <div className="filter-panel">
+              <FilterGroup
+                title="Season"
+                options={lookCountsFor(
+                  "sea",
+                  SEASONS,
+                  (f, v) => f.seasons.has(v) || (v !== "All seasons" && f.seasons.has("All seasons")),
+                  lookSeas
+                )}
+                selected={lookSeas}
+                onToggle={(v) => toggleIn(lookSeas, v, setLookSeas)}
+              />
+              <FilterGroup
+                title="Formality"
+                options={lookCountsFor("form", FORMALITY, (f, v) => f.formality.has(v), lookForm)}
+                selected={lookForm}
+                onToggle={(v) => toggleIn(lookForm, v, setLookForm)}
+              />
+            </div>
+          )}
           {packListIds.length > 0 && (
             <div className="pack-summary">
               <div className="pack-summary-head">
@@ -1158,27 +1179,6 @@ export default function StyleTab({
               })()}
             </div>
           )}
-          {showLookFilters && (
-            <div className="filter-panel">
-              <FilterGroup
-                title="Season"
-                options={lookCountsFor(
-                  "sea",
-                  SEASONS,
-                  (f, v) => f.seasons.has(v) || (v !== "All seasons" && f.seasons.has("All seasons")),
-                  lookSeas
-                )}
-                selected={lookSeas}
-                onToggle={(v) => toggleIn(lookSeas, v, setLookSeas)}
-              />
-              <FilterGroup
-                title="Formality"
-                options={lookCountsFor("form", FORMALITY, (f, v) => f.formality.has(v), lookForm)}
-                selected={lookForm}
-                onToggle={(v) => toggleIn(lookForm, v, setLookForm)}
-              />
-            </div>
-          )}
           {filteredLooks.length === 0 ? (
             <div className="empty">No saved looks match these filters.</div>
           ) : (
@@ -1204,7 +1204,7 @@ export default function StyleTab({
                           Rename
                         </button>
                         <button className="chip" onClick={() => removeLook(l)}>
-                          Remove from saved looks
+                          Remove from saved
                         </button>
                       </>
                     }
