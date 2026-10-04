@@ -1430,6 +1430,21 @@ header.top.collapsed .top-nav .theme-btn svg {
   color: var(--ink);
 }
 
+/* The one card-actions chip that's also a .sel toggle - Saved Looks'
+   "In pack list" button (StyleTab.js). Same specificity as the quiet-link
+   rule above, so without this its `color: var(--muted)` wins the tie and
+   overrides .chip.sel's `color: var(--accent-ink)` right back off. Harmless
+   in light mode, where --muted is dark enough to still read on the lime
+   chip by coincidence - in dark mode --muted flips to a light tan, which
+   sits on the same (theme-constant) lime background and is nearly
+   unreadable. Exactly the light-on-lime contrast bug the themed-variables
+   comment at the top of this file describes fixing once already, just
+   reintroduced through this second selector. Found via a full QA pass,
+   Oct 2026. */
+.card-actions .chip.sel {
+  color: var(--accent-ink);
+}
+
 /* Once an inspo pin has been added to wardrobe (i.wantedItemId set), swap
    the action for a plain done-state label rather than leaving "I want
    this"/"Add to wardrobe as wanted" live - clicking either again used to
