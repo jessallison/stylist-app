@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { geocodeCity } from "../lib/weather";
-import { SEASONS, FORMALITY, COLOURS, COLOUR_TEXT_HEX } from "../lib/style-identity";
+import { SEASONS, FORMALITY } from "../lib/style-identity";
 import {
   newId,
   PhotoButton,
@@ -111,14 +111,15 @@ export default function ProfileTab({
   // when there's nothing pending.
   const [pendingWorn, setPendingWorn] = useState(null);
   const [busy, setBusy] = useState(0);
-  // Worn-outfits Filters panel - same season/formality/colour facets Saved
-  // looks uses (see outfitFacets in shared.js), derived from each entry's
+  // Worn-outfits Filters panel - same season/formality facets Saved looks
+  // uses (see outfitFacets in shared.js), derived from each entry's
   // item_ids rather than stored directly, so relinking or re-tagging a
-  // piece updates the filters automatically.
+  // piece updates the filters automatically. No colour filter, to match
+  // Saved looks: it unions every colour across a 3-5 item outfit, which
+  // is too weak a signal to filter by - see the same call in StyleTab.js.
   const [showWornFilters, setShowWornFilters] = useState(false);
   const [wornSeas, setWornSeas] = useState(new Set());
   const [wornForm, setWornForm] = useState(new Set());
-  const [wornCols, setWornCols] = useState(new Set());
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [idForm, setIdForm] = useState(null);
   const [savingIdentity, setSavingIdentity] = useState(false);
@@ -159,8 +160,6 @@ export default function ProfileTab({
       return false;
     if (skip !== "form" && wornForm.size && ![...wornForm].some((v) => f.formality.has(v)))
       return false;
-    if (skip !== "col" && wornCols.size && ![...wornCols].some((v) => f.colours.has(v)))
-      return false;
     return true;
   }
   const wornCountsFor = (group, values, has, selected) => {
@@ -169,7 +168,7 @@ export default function ProfileTab({
       .map((v) => [v, v, pool.filter((p) => has(wornFacets[p.id], v)).length])
       .filter(([v, , count]) => count > 0 || selected.has(v));
   };
-  const activeWornFilterCount = wornSeas.size + wornForm.size + wornCols.size;
+  const activeWornFilterCount = wornSeas.size + wornForm.size;
   const filteredProfile = profile.filter((p) => wornPasses(p, null));
 
   function requireUnlock() {
@@ -555,7 +554,6 @@ export default function ProfileTab({
             onClick={() => {
               setWornSeas(new Set());
               setWornForm(new Set());
-              setWornCols(new Set());
             }}
           >
             Clear filters
@@ -587,13 +585,6 @@ export default function ProfileTab({
             options={wornCountsFor("form", FORMALITY, (f, v) => f.formality.has(v), wornForm)}
             selected={wornForm}
             onToggle={(v) => toggleIn(wornForm, v, setWornForm)}
-          />
-          <FilterGroup
-            title="Colour"
-            options={wornCountsFor("col", COLOURS, (f, v) => f.colours.has(v), wornCols)}
-            selected={wornCols}
-            onToggle={(v) => toggleIn(wornCols, v, setWornCols)}
-            swatches={COLOUR_TEXT_HEX}
           />
         </div>
       )}

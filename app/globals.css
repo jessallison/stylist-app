@@ -156,6 +156,17 @@ header.top {
   padding: 18px 0 16px;
   border-bottom: 1px solid var(--ink);
   margin-bottom: 26px;
+  /* Sticks to the viewport top on scroll, so switching tabs on a long
+     Wardrobe or Saved looks list doesn't mean scrolling back up first.
+     Needs its own background - once stuck, the tile grid scrolls under it,
+     and .wrap's padding doesn't travel with a sticky child, so without
+     this the header would go transparent over whatever's passing beneath.
+     z-index 15 keeps it under .modal-bg (20) and .toast (30), so the login
+     gate and toasts still sit above it, never behind. */
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: var(--bg);
 }
 
 .brand {
