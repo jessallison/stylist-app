@@ -72,6 +72,11 @@ export default function StyleTab({
   // Scroll target for the loading/results block below - see the comment in
   // run() for why this replaced scrolling to the page's absolute top.
   const resultsAnchorRef = useRef(null);
+  // The in-flight request, so Stop (see stopStyling below) can abort it -
+  // one slot is enough since run() and runPacking() are mutually exclusive
+  // (both gate on busy, and the Style me / Pack button is disabled while
+  // busy is true).
+  const abortRef = useRef(null);
   // Scroll target for a piece arriving from another tab ("Style this"): the
   // loaded piece, the filters and the Style me button, so on a phone you
   // land looking at exactly what to press next.
@@ -281,6 +286,8 @@ export default function StyleTab({
     setTimeout(() => {
       resultsAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const res = await fetch("/api/suggest", {
         method: "POST",
@@ -289,14 +296,34 @@ export default function StyleTab({
           "x-admin-key": adminKey || "",
         },
         body: JSON.stringify(body),
+        signal: controller.signal,
       });
       const j = await res.json();
       if (!res.ok) setError(j.error || "Something went wrong");
       else setResult({ ...j, flow: f, image: body.image });
-    } catch {
-      setError("Something went wrong - try again");
+    } catch (err) {
+      // AbortError means stopStyling() fired - it's already reset busy,
+      // result and error, so there's nothing left to show for this call.
+      if (err?.name !== "AbortError") setError("Something went wrong - try again");
     }
+    abortRef.current = null;
     setBusy(false);
+  }
+
+  // Wired to the Stop button shown alongside the loading state (see
+  // StylingLoader below) - aborts whichever request is in flight (run() or
+  // runPacking()) and discards it entirely, rather than keeping whatever
+  // came back first. The scenario this is for is realising the season or
+  // occasion filter was wrong *after* already pressing Style me / Pack -
+  // the fix is to go change the filter and try again, not to see outfits
+  // built from the wrong brief.
+  function stopStyling() {
+    abortRef.current?.abort();
+    setBusy(false);
+    setPackProgress(null);
+    setResult(null);
+    setError(null);
+    flash("Stopped - nothing saved");
   }
 
   // "Pack for a trip" asks for more outfits than the ordinary call ever
@@ -346,6 +373,13 @@ export default function StyleTab({
     const notes = [];
     let remaining = totalOutfits;
 
+    // One controller for the whole trip, not one per batch - Stop should
+    // cut the run off wherever it currently is, and since a fresh batch
+    // only starts after the previous one resolves, there's never more than
+    // one fetch using it at a time.
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     while (remaining > 0) {
       const batchSize = Math.min(PACK_BATCH_SIZE, remaining);
       try {
@@ -361,6 +395,7 @@ export default function StyleTab({
             },
             weather: weatherBody,
           }),
+          signal: controller.signal,
         });
         const j = await res.json();
         if (!res.ok) {
@@ -372,13 +407,21 @@ export default function StyleTab({
         if (j.overall_note) notes.push(j.overall_note);
         remaining -= batchSize;
         setPackProgress({ done: allOutfits.length, total: totalOutfits });
-      } catch {
+      } catch (err) {
+        // stopStyling() already reset busy/result/error/packProgress and
+        // flashed its own message - the outfits packed so far are exactly
+        // what it's discarding, so there's nothing left to do but leave.
+        if (err?.name === "AbortError") {
+          abortRef.current = null;
+          return;
+        }
         if (allOutfits.length === 0) setError("Something went wrong - try again");
         else notes.push("Couldn't finish the rest of the trip - try again to fill it out.");
         break;
       }
     }
 
+    abortRef.current = null;
     setPackProgress(null);
     if (allOutfits.length) {
       setResult({ outfits: allOutfits, overall_note: [...new Set(notes)].join(" "), flow: "B" });
@@ -919,6 +962,7 @@ export default function StyleTab({
                 ? { dataUrl: image, photoId: inspoId ? data.inspo.find((i) => i.id === inspoId)?.photoId : null }
                 : null
           }
+          onStop={stopStyling}
         />
       )}
       {error && <div className="notice err-notice">{error}</div>}
@@ -1108,7 +1152,7 @@ export default function StyleTab({
                           Rename
                         </button>
                         <button className="chip" onClick={() => removeLook(l)}>
-                          Remove
+                          Remove from saved looks
                         </button>
                       </>
                     }
@@ -1141,7 +1185,7 @@ export default function StyleTab({
 // Everything is inline SVG and CSS - no animation library, no image file,
 // nothing to download - and the motion switches off under
 // prefers-reduced-motion (see globals.css).
-function StylingLoader({ message, heading, thumb }) {
+function StylingLoader({ message, heading, thumb, onStop }) {
   return (
     <div className="styling-loader" role="status" aria-live="polite">
       <div className="styling-head">
@@ -1158,6 +1202,14 @@ function StylingLoader({ message, heading, thumb }) {
             {message}…
           </div>
         </div>
+        {/* Covers both a wrong season/occasion filter noticed right after
+            pressing Style me / Pack, and just changing your mind mid-run -
+            aborts whichever request is in flight (see stopStyling in
+            StyleTab) and discards it, rather than showing what it had
+            built from the wrong brief. */}
+        <button type="button" className="chip styling-stop-btn" onClick={onStop}>
+          Stop
+        </button>
       </div>
       <div className="results skeleton-results" aria-hidden="true">
         {[0, 1, 2].map((n) => (

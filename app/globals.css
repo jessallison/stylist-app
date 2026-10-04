@@ -1924,6 +1924,11 @@ header.top {
   min-width: 0;
 }
 
+.styling-stop-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 .styling-title {
   display: flex;
   align-items: flex-start;
