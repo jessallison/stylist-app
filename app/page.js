@@ -99,6 +99,20 @@ export default function Home() {
     }
   }
 
+  // Collapses the sticky header to a single compact row once you've
+  // scrolled a little, so a long Wardrobe or Saved looks list doesn't
+  // spend a quarter of the screen on the wordmark the whole time you're
+  // scrolling it. 36px of scroll (not 0) so an ordinary small bounce/
+  // overscroll at the top doesn't flicker it in and out.
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  useEffect(() => {
+    function onScroll() {
+      setNavCollapsed(window.scrollY > 36);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   // Viewing needs the password too. First load tries the stored key; a 401
   // means the whole app stays behind the gate until login succeeds (which
   // also sets the cookie that authenticates <img> requests).
@@ -520,7 +534,7 @@ export default function Home() {
 
   return (
     <div className="wrap">
-      <header className="top">
+      <header className={`top ${navCollapsed ? "collapsed" : ""}`}>
         <div className="brand">
           <h1 className="b-name-wrap">
             <button type="button" className="b-name" onClick={() => setTab("style")}>
@@ -538,56 +552,69 @@ export default function Home() {
             by Producing Paradise
           </a>
         </div>
-        <nav className="top-nav">
-          {[
-            ["style", "Style me"],
-            ["wardrobe", "Wardrobe"],
-            ["inspo", "Inspo"],
-            ["profile", "Profile"],
-          ].map(([id, label]) => (
+        <div className="header-row">
+          {/* Stands in for the wordmark once it's folded away below - just
+              the coat hanger, enough of a mark to say "you're still in
+              Personal Stylist" without spending the width on the full
+              name. Hidden from screen readers since the real heading
+              (.b-name, above) is still in the DOM either way. */}
+          <div className="brand-mini" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 4.3a1.4 1.4 0 1 1 1.7 1.37L12 7" />
+              <path d="M12 7 2.6 14.2c-.7.5-.3 1.6.6 1.6h17.6c.9 0 1.3-1.1.6-1.6L12 7Z" />
+            </svg>
+          </div>
+          <nav className="top-nav">
+            {[
+              ["style", "Style me"],
+              ["wardrobe", "Wardrobe"],
+              ["inspo", "Inspo"],
+              ["profile", "Profile"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                className={tab === id ? "active" : ""}
+                onClick={() => setTab(id)}
+              >
+                {label}
+              </button>
+            ))}
             <button
-              key={id}
-              className={tab === id ? "active" : ""}
-              onClick={() => setTab(id)}
+              className="theme-btn"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              title={theme === "dark" ? "Light mode" : "Dark mode"}
             >
-              {label}
+              {theme === "dark" ? (
+                <svg viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="3.33" stroke="currentColor" />
+                  <line x1="8" y1="0.67" x2="8" y2="2" stroke="currentColor" strokeLinecap="round" />
+                  <line x1="8" y1="14" x2="8" y2="15.33" stroke="currentColor" strokeLinecap="round" />
+                  <line x1="2.81" y1="2.81" x2="3.76" y2="3.76" stroke="currentColor" strokeLinecap="round" />
+                  <line x1="12.24" y1="12.24" x2="13.19" y2="13.19" stroke="currentColor" strokeLinecap="round" />
+                  <line x1="0.67" y1="8" x2="2" y2="8" stroke="currentColor" strokeLinecap="round" />
+                  <line x1="14" y1="8" x2="15.33" y2="8" stroke="currentColor" strokeLinecap="round" />
+                  <line x1="2.81" y1="13.19" x2="3.76" y2="12.24" stroke="currentColor" strokeLinecap="round" />
+                  <line x1="12.24" y1="3.76" x2="13.19" y2="2.81" stroke="currentColor" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M14 8.53A6 6 0 1 1 7.47 2 4.67 4.67 0 0 0 14 8.53z"
+                    stroke="currentColor"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
             </button>
-          ))}
-          <button
-            className="theme-btn"
-            onClick={toggleTheme}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            title={theme === "dark" ? "Light mode" : "Dark mode"}
-          >
-            {theme === "dark" ? (
-              <svg viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="3.33" stroke="currentColor" />
-                <line x1="8" y1="0.67" x2="8" y2="2" stroke="currentColor" strokeLinecap="round" />
-                <line x1="8" y1="14" x2="8" y2="15.33" stroke="currentColor" strokeLinecap="round" />
-                <line x1="2.81" y1="2.81" x2="3.76" y2="3.76" stroke="currentColor" strokeLinecap="round" />
-                <line x1="12.24" y1="12.24" x2="13.19" y2="13.19" stroke="currentColor" strokeLinecap="round" />
-                <line x1="0.67" y1="8" x2="2" y2="8" stroke="currentColor" strokeLinecap="round" />
-                <line x1="14" y1="8" x2="15.33" y2="8" stroke="currentColor" strokeLinecap="round" />
-                <line x1="2.81" y1="13.19" x2="3.76" y2="12.24" stroke="currentColor" strokeLinecap="round" />
-                <line x1="12.24" y1="3.76" x2="13.19" y2="2.81" stroke="currentColor" strokeLinecap="round" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M14 8.53A6 6 0 1 1 7.47 2 4.67 4.67 0 0 0 14 8.53z"
-                  stroke="currentColor"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-          </button>
-          <button
-            className={`lock-btn ${unlocked ? "unlocked" : ""}`}
-            onClick={lockToggle}
-          >
-            {unlocked ? "Lock" : "Unlock"}
-          </button>
-        </nav>
+            <button
+              className={`lock-btn ${unlocked ? "unlocked" : ""}`}
+              onClick={lockToggle}
+            >
+              {unlocked ? "Lock" : "Unlock"}
+            </button>
+          </nav>
+        </div>
       </header>
 
       {unlocked && isFreshStart && (

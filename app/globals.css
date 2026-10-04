@@ -148,11 +148,6 @@ a {
 /* --- Header ---------------------------------------------------------------- */
 
 header.top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px 20px;
   padding: 18px 0 16px;
   border-bottom: 1px solid var(--ink);
   margin-bottom: 26px;
@@ -167,6 +162,14 @@ header.top {
   top: 0;
   z-index: 15;
   background: var(--bg);
+  transition: padding 0.28s ease;
+}
+
+/* Past 36px of scroll (see navCollapsed in page.js), the wordmark folds
+   away and .brand-mini's coat hanger stands in for it instead - see both
+   below. The header itself just tightens its own padding to match. */
+header.top.collapsed {
+  padding: 8px 0;
 }
 
 .brand {
@@ -175,6 +178,85 @@ header.top {
   gap: 12px;
   flex-wrap: wrap;
   min-width: 0;
+  max-height: 70px;
+  opacity: 1;
+  overflow: hidden;
+  margin-bottom: 12px;
+  transition: max-height 0.28s ease, opacity 0.18s ease, margin-bottom 0.28s ease;
+}
+
+header.top.collapsed .brand {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
+  transition: max-height 0.22s ease, opacity 0.12s ease, margin-bottom 0.22s ease;
+}
+
+/* Brand (above) and the nav row (below) now stack - on a wide screen this
+   is a deliberate change from the old single-row "wordmark, then nav
+   shoved to the far right" layout: that layout gave the theme/lock pair
+   nothing to right-align against except the end of a shrink-to-fit nav
+   box, which is the same bug the mock-up hit (see .top-nav's flex: 1
+   below) - splitting the rows sidesteps it entirely, expanded or
+   collapsed. */
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+/* Collapsed: never wrap to a second line, whatever the screen width.
+   Compact tab padding (further down) gets it to fit without scrolling on
+   an ordinary phone or desktop; overflow-x is the safety net for
+   anything narrower - the same pattern a lot of apps use for a condensed
+   tab bar. */
+header.top.collapsed .header-row {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  gap: 1px;
+}
+
+/* .top-nav is its own flex container with its own flex-wrap: wrap (base
+   rule, above) - collapsing .header-row alone only stops it wrapping
+   against .brand-mini, it does nothing about the nav's six children
+   (four tabs, theme, lock) wrapping among themselves, which is what was
+   actually sending Lock onto its own line. Needs the same nowrap. Gap
+   trimmed to 1px too - every pixel counts once compact. */
+header.top.collapsed .top-nav {
+  flex-wrap: nowrap;
+  gap: 1px;
+}
+
+header.top.collapsed .header-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* The coat hanger mark that stands in for the full wordmark once it's
+   folded away - width-based reveal so it slides the nav row over rather
+   than just popping in. */
+.brand-mini {
+  display: flex;
+  align-items: center;
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  color: var(--ink);
+  flex-shrink: 0;
+  transition: width 0.28s ease, opacity 0.2s ease, margin-right 0.28s ease;
+}
+
+header.top.collapsed .brand-mini {
+  width: 26px;
+  opacity: 1;
+  margin-right: 6px;
+}
+
+.brand-mini svg {
+  flex-shrink: 0;
+  display: block;
 }
 
 .b-name-wrap {
@@ -221,6 +303,12 @@ header.top {
   align-items: center;
   gap: 2px;
   flex-wrap: wrap;
+  /* Fills whatever's left of .header-row next to .brand-mini - without
+     this, margin-left: auto on .theme-btn below only reaches the edge of
+     the nav's own tight-fit box, not the actual right edge of the header
+     (invisible on a phone, where the nav already wraps to fill the width;
+     it only showed up wide enough to see on desktop). */
+  flex: 1;
 }
 
 .top-nav button:not(.theme-btn):not(.lock-btn) {
@@ -237,6 +325,7 @@ header.top {
   font-weight: 500;
   color: var(--muted);
   border-bottom: 1px solid transparent;
+  transition: padding 0.22s ease, font-size 0.22s ease;
 }
 
 /* Repeats the :not() clauses from the base rule above purely to match its
@@ -251,11 +340,51 @@ header.top {
 }
 
 .top-nav .theme-btn {
-  margin-left: 14px;
+  /* auto, not a fixed gap - with .top-nav now flex: 1 (above), this
+     reaches the true right edge of the header in every state, expanded
+     or collapsed, phone or desktop. */
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .top-nav .lock-btn {
   margin-left: 6px;
+  flex-shrink: 0;
+}
+
+/* Collapsed: tighter tab padding, same spirit as the existing
+   max-width: 480px tier further down, just triggered by scroll position
+   instead of viewport width - the header is already in "minimal chrome"
+   mode once collapsed, so there's no reason to wait for a narrow screen
+   to tighten it too.
+
+   The numbers here (and on .lock-btn/.theme-btn just below) are tighter
+   than the first pass - with four tabs, the lock button and the theme
+   toggle all fighting for one line on a 390px phone, the first pass
+   still overflowed by about 50px even after the nowrap fix above. This
+   trims padding, letter-spacing and the two fixed-size buttons until it
+   genuinely fits on one line without the overflow-x fallback kicking in
+   on an ordinary phone width. */
+header.top.collapsed .top-nav button:not(.theme-btn):not(.lock-btn) {
+  padding: 7px 6px;
+  font-size: 0.6rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+header.top.collapsed .top-nav .lock-btn {
+  padding: 7px 8px;
+  letter-spacing: 0.03em;
+}
+
+header.top.collapsed .top-nav .theme-btn {
+  width: 28px;
+  height: 28px;
+}
+
+header.top.collapsed .top-nav .theme-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .lock-btn {
@@ -2529,16 +2658,10 @@ header.top {
     letter-spacing: 0.06em;
     white-space: nowrap;
   }
-  /* Same "push Dark/Lock to the far right of whichever row they land on"
-     treatment as the >480px tier - without it, on a wrap they'd sit right
-     after the last tab at only a few px gap, reading as part of the tab
-     group instead of a separate control pair. */
-  .top-nav .theme-btn {
-    margin-left: auto;
-  }
-  .top-nav .lock-btn {
-    margin-left: 6px;
-  }
+  /* Pushing Dark/Lock to the header's right edge is now the base
+     .top-nav .theme-btn rule's job (margin-left: auto + .top-nav's own
+     flex: 1) - it already covers every width, this tier only needs to
+     tighten what's left to fit. */
   .lock-btn {
     padding: 7px 8px;
     font-size: 0.58rem;
