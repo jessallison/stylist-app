@@ -104,13 +104,37 @@ export default function Home() {
   // spend a quarter of the screen on the wordmark the whole time you're
   // scrolling it. 36px of scroll (not 0) so an ordinary small bounce/
   // overscroll at the top doesn't flicker it in and out.
+  //
+  // Also keeps a --header-h custom property in sync with the header's
+  // actual rendered height in each state (measured, not guessed, so it
+  // can't quietly drift out of date if the header's padding changes later)
+  // - StyleTab's results-anchor div (see .results-anchor in globals.css)
+  // reads this as its scroll-margin-top. Without it, the "Style me"/"Pack
+  // for a trip" auto-scroll-to-results (resultsAnchorRef.scrollIntoView)
+  // has no idea the sticky header is sitting on top of whatever it scrolls
+  // to, and lands the loading card tucked almost flush against the
+  // header's bottom edge instead of clear of it - found via a report that
+  // the space above "Packing for your trip" felt too tight, which is
+  // exactly that overlap, not an actual padding shortfall.
   const [navCollapsed, setNavCollapsed] = useState(false);
+  const headerRef = useRef(null);
   useEffect(() => {
     function onScroll() {
       setNavCollapsed(window.scrollY > 36);
+      if (headerRef.current) {
+        document.documentElement.style.setProperty(
+          "--header-h",
+          `${headerRef.current.getBoundingClientRect().height}px`
+        );
+      }
     }
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   // Viewing needs the password too. First load tries the stored key; a 401
@@ -210,8 +234,19 @@ export default function Home() {
   }
 
   function flash(msg) {
-    setToast(msg);
+    setToast({ message: msg });
     setTimeout(() => setToast(null), 2600);
+  }
+
+  // Same toast, plus a tappable action - for a destructive one-tap button
+  // with no confirmation step (Clear pack list, below), so "I didn't mean
+  // to do that" has somewhere to go that isn't retyping the whole list by
+  // hand. Left up longer than a plain flash() (6s vs 2.6s) since reading
+  // the message AND deciding whether to act on it takes longer than just
+  // reading it.
+  function flashAction(msg, actionLabel, onAction) {
+    setToast({ message: msg, actionLabel, onAction });
+    setTimeout(() => setToast(null), 6000);
   }
 
   // save("wardrobe", nextArray) or save("inspo", (cur) => next). Rolls back
@@ -528,13 +563,14 @@ export default function Home() {
     needAuth: () => setShowLogin(true),
     adminKey,
     flash,
+    flashAction,
     tileSize,
     setTileSize,
   };
 
   return (
     <div className="wrap">
-      <header className={`top ${navCollapsed ? "collapsed" : ""}`}>
+      <header ref={headerRef} className={`top ${navCollapsed ? "collapsed" : ""}`}>
         <div className="brand">
           <h1 className="b-name-wrap">
             <button type="button" className="b-name" onClick={() => setTab("style")}>
@@ -724,7 +760,23 @@ export default function Home() {
           }}
         />
       )}
-      {toast && <div className="toast">{toast}</div>}
+      {toast && (
+        <div className="toast">
+          {toast.message}
+          {toast.actionLabel && (
+            <button
+              type="button"
+              className="toast-action"
+              onClick={() => {
+                toast.onAction?.();
+                setToast(null);
+              }}
+            >
+              {toast.actionLabel}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

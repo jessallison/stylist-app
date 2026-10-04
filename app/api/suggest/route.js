@@ -270,6 +270,16 @@ export async function POST(request) {
     flow === "B" ? Math.max(0, Math.min(3, Math.floor(Number(filters.packCount) || 0))) : 0;
   const packing = packCount > 0;
   const outfitCount = packing ? packCount : 3;
+  // Exact combinations already used elsewhere in the trip (earlier batches),
+  // each as a sorted array of item ids - validated here (shape only, no
+  // wardrobe lookup needed yet) so both the AI path below and the no-key
+  // random-fallback path above it can use the same list to avoid handing
+  // back an outfit that's already in the trip.
+  const packExcludeCombos = Array.isArray(filters.packExcludeCombos)
+    ? filters.packExcludeCombos
+        .filter((c) => Array.isArray(c) && c.length)
+        .map((c) => [...new Set(c.filter((id) => typeof id === "string"))].sort())
+    : [];
 
   let wardrobe, inspo, styleProfile, settings, feedback, looks;
   try {
@@ -423,6 +433,7 @@ export async function POST(request) {
         { status: 503 }
       );
     }
+    const seenRandomCombos = new Set(packExcludeCombos.map((c) => c.join("|")));
     const randomOutfits = buildRandomOutfits({
       pool,
       anchor,
@@ -435,6 +446,15 @@ export async function POST(request) {
         ONE_PER_OUTFIT_CATEGORIES.every(
           (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
         ) &&
+        // Same exact-combination dedup as the AI path below - without a
+        // key, random assembly from a small wardrobe hits this even more
+        // often than the AI does.
+        (() => {
+          const key = [...o.item_ids].sort().join("|");
+          if (seenRandomCombos.has(key)) return false;
+          seenRandomCombos.add(key);
+          return true;
+        })() &&
         validBottomsPairing(o) &&
         validDressPairing(o)
     );
@@ -492,12 +512,20 @@ export async function POST(request) {
     .filter((id) => wearableIds.has(id))
     .map(nameOf)
     .slice(0, 12);
+  // packExcludeCombos itself is computed earlier (near packCount) so the
+  // no-key random-fallback path above can use it too - just the prompt
+  // wording for it lives here, next to the rest of the packing filter text.
   if (packing) {
     filterLines.push(
       reuseNames.length
-        ? `Packing for a trip, as part of a bigger set of outfits (this is one batch of it) - these pieces are already used elsewhere in the trip, so prefer building around them again where they genuinely fit rather than reaching for different items for the same role: ${reuseNames.join(", ")}. The goal across the whole trip is a small set of pieces that recombines well, not a pile of unrelated looks - but still keep what you return here visually distinct, outfit to outfit.`
+        ? `Packing for a trip, as part of a bigger set of outfits (this is one batch of it) - these pieces are already used elsewhere in the trip, so prefer building around them again where they genuinely fit rather than reaching for different items for the same role: ${reuseNames.join(", ")}. The goal across the whole trip is a small set of pieces that recombines well, not a pile of unrelated looks - but still keep what you return here visually distinct, outfit to outfit, and never repeat the exact same combination of pieces as an outfit that's already in the trip.`
         : `Packing for a trip, as part of a bigger set of outfits (this is the first batch of it) - lean towards a small, versatile set of pieces that could recombine into further outfits beyond this batch, rather than reaching for a different item for every role.`
     );
+    if (packExcludeCombos.length) {
+      filterLines.push(
+        `Already-used exact outfits for this trip, as item id sets - do not return any of these combinations again (a different combination that reuses one or two of the same pieces is fine and expected): ${packExcludeCombos.map((c) => `[${c.join(", ")}]`).join("; ")}`
+      );
+    }
   } else if (reuseNames.length) {
     filterLines.push(
       `Already packed for this trip: ${reuseNames.join(", ")}. Where it genuinely fits, prefer building this outfit around one or more of these rather than reaching for a different item in the same role, so the trip doesn't end up needing more than it has to.`
@@ -642,6 +670,16 @@ ${flowText}`;
       ...(flow === "C" && !anchor ? ["NEW"] : []),
     ]);
     const wantedIds = new Set(wanted.map((w) => w.id));
+    // Exact-combination dedup: belt-and-braces for the packExcludeCombos
+    // prompt line above (earlier batches of the same trip), and also
+    // catches the model handing back two identical outfits within this one
+    // batch. Keyed on the sorted item_ids, same shape as packExcludeCombos
+    // itself. A combo only joins this set once an outfit actually clears
+    // every other check below and is about to be kept - placed last in the
+    // filter chain (short-circuit) so a candidate rejected for some other
+    // reason (missing the anchor, say) can't falsely "claim" a combination
+    // and block a later, genuinely valid outfit with the same items.
+    const seenCombos = new Set(packExcludeCombos.map((c) => c.join("|")));
     // categoryOf and ONE_PER_OUTFIT_CATEGORIES are computed once, earlier,
     // above the no-AI fallback branch - shared by both paths.
     const outfits = (result.outfits || [])
@@ -678,7 +716,13 @@ ${flowText}`;
             (cat) => o.item_ids.filter((id) => categoryOf.get(id) === cat).length <= 1
           ) &&
           validBottomsPairing(o) &&
-          validDressPairing(o)
+          validDressPairing(o) &&
+          (() => {
+            const key = [...o.item_ids].sort().join("|");
+            if (seenCombos.has(key)) return false;
+            seenCombos.add(key);
+            return true;
+          })()
       );
 
     if (!outfits.length) {

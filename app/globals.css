@@ -1512,9 +1512,9 @@ header.top.collapsed .top-nav .theme-btn svg {
 
 .pack-days-input {
   width: 72px;
-  /* Tighter than the global input padding (9px 12px) - at the default
-     width that padding left too little room for the "days" placeholder
-     to render in full on narrow phone screens (clipped to "day…"). */
+  /* Tighter than the global input padding (9px 12px), just to give a
+     72px-wide number input a bit more room for its own digit(s) and the
+     spinner arrows. */
   padding-left: 8px;
   padding-right: 8px;
   flex: 0 0 auto;
@@ -2032,6 +2032,17 @@ header.top.collapsed .top-nav .theme-btn svg {
 
 .weather-note {
   color: var(--muted);
+}
+
+/* Target of resultsAnchorRef's scrollIntoView (StyleTab.js) when a
+   suggestion or pack run starts - --header-h is kept in sync with the
+   sticky header's actual current height (expanded or collapsed) by
+   page.js, so the auto-scroll leaves genuine clearance under the header
+   instead of landing content flush against it. The 160px fallback covers
+   the instant before that effect has run (comfortably above the header's
+   tallest, expanded height - see measured heights in page.js's comment). */
+.results-anchor {
+  scroll-margin-top: var(--header-h, 160px);
 }
 
 /* In-flight state for a suggestion run (StylingLoader in StyleTab.js).
@@ -2697,4 +2708,23 @@ header.top.collapsed .top-nav .theme-btn svg {
   z-index: 30;
   max-width: 90vw;
   text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Undo, inside a toast (flashAction in page.js) - inverted from the toast's
+   own ink-on-bg so it reads as a tappable control, not more message text. */
+.toast-action {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 6px 12px;
+  background: var(--bg);
+  color: var(--ink);
+  border: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
 }

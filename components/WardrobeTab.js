@@ -99,6 +99,7 @@ export default function WardrobeTab({
   needAuth,
   adminKey,
   flash,
+  flashAction,
   onStyle,
   tileSize,
   setTileSize,
@@ -942,12 +943,22 @@ export default function WardrobeTab({
   // feature this reads from. Clearing here is the same action as Saved
   // looks' "Clear pack list" button, just reachable without switching tabs.
   const packListIds = data.settings?.packListIds || [];
+  // Same undo-via-toast as Saved looks' "Clear pack list" (StyleTab.js) -
+  // see its comment for why. Snapshots packListIds up front for the same
+  // stale-closure reason.
   async function clearPackList() {
     if (!unlocked) {
       needAuth();
       return;
     }
+    const prev = packListIds;
+    if (!prev.length) return;
     await save("settings", (s) => ({ ...s, packListIds: [] }));
+    flashAction(
+      `Pack list cleared - ${prev.length} ${prev.length === 1 ? "look" : "looks"}`,
+      "Undo",
+      () => save("settings", (s) => ({ ...s, packListIds: prev }))
+    );
   }
 
   // Shuffle: picks from whatever's currently shown and wearable, respecting

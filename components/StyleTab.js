@@ -43,6 +43,7 @@ export default function StyleTab({
   needAuth,
   adminKey,
   flash,
+  flashAction,
   request,
   clearRequest,
   goToTab,
@@ -406,6 +407,15 @@ export default function StyleTab({
               ...filters,
               packCount: batchSize,
               packReuseIds: [...new Set(allOutfits.flatMap((o) => o.item_ids))],
+              // packReuseIds only tells the next batch which PIECES are
+              // already in play, not which exact COMBINATIONS - with a
+              // small wardrobe and the prompt above actively steering every
+              // batch back towards the same reused pieces, two batches
+              // landing on the identical outfit was common enough on a
+              // longer trip to be the actual reported bug, not a fluke.
+              // Each batch's own outfits are sent on as an exclude list for
+              // every batch after it.
+              packExcludeCombos: allOutfits.map((o) => [...o.item_ids].sort()),
             },
             weather: weatherBody,
           }),
@@ -573,12 +583,25 @@ export default function StyleTab({
     await save("settings", (s) => ({ ...s, packListIds: next }));
   }
 
+  // No confirmation step before this one - it's a single tap sitting right
+  // next to the pack list's other controls, which read as risky with
+  // nothing to undo it. flashAction gives it a few seconds to put back
+  // rather than making the person re-tap "Add to pack list" on every look
+  // by hand. Snapshots packListIds up front since `data` (and so the
+  // closure here) is stale by the time Undo might actually be tapped.
   async function clearPackList() {
     if (!unlocked) {
       needAuth();
       return;
     }
+    const prev = data.settings?.packListIds || [];
+    if (!prev.length) return;
     await save("settings", (s) => ({ ...s, packListIds: [] }));
+    flashAction(
+      `Pack list cleared - ${prev.length} ${prev.length === 1 ? "look" : "looks"}`,
+      "Undo",
+      () => save("settings", (s) => ({ ...s, packListIds: prev }))
+    );
   }
 
   // For a fresh, not-yet-saved suggestion: save it then pack it in one
@@ -943,11 +966,17 @@ export default function StyleTab({
                 type="number"
                 min="0"
                 max="7"
-                placeholder="days"
+                placeholder="0"
                 value={filters.days || ""}
                 onChange={(e) => setFilters({ ...filters, days: e.target.value })}
                 className="pack-days-input"
               />
+              {/* The placeholder says "days" too, but only while the box is
+                  empty - once a number's typed in, nothing on screen said
+                  what it was a count OF. A trailing label doesn't have that
+                  problem, same pattern as a quantity field with a fixed
+                  unit. */}
+              days
             </label>
             {Number(filters.days) > 0 && (
               <span className="weather-note">
@@ -960,7 +989,7 @@ export default function StyleTab({
       </div>
       )}
 
-      <div ref={resultsAnchorRef}>
+      <div ref={resultsAnchorRef} className="results-anchor">
       {busy && packProgress && (
         <div className="weather-note" style={{ marginBottom: 8 }}>
           Packed {packProgress.done} of {packProgress.total} outfits so far…
