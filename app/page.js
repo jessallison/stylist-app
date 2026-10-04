@@ -461,7 +461,35 @@ export default function Home() {
     );
   }
 
-  if (!data) return <div className="wrap empty">Opening the wardrobe…</div>;
+  // First paint after the JS loads: /api/data hasn't come back yet. Echoes
+  // the real header (static - doesn't depend on data, so it's not a lie)
+  // plus a tile grid in the shimmer already used for AI suggestion loading
+  // (.sk / .sk-thumb / .sk-name, see globals.css) rather than bare text, so
+  // the one moment every visit sits through has some shape to it.
+  if (!data) {
+    return (
+      <div className="wrap">
+        <header className="top">
+          <div className="brand">
+            <h1 className="b-name-wrap">
+              <span className="b-name">Personal Stylist</span>
+            </h1>
+            <span className="f-plus">+</span>
+            <span className="b-divider" />
+            <span className="b-by">by Producing Paradise</span>
+          </div>
+        </header>
+        <div className="grid skeleton-grid" aria-hidden="true">
+          {[0, 1, 2, 3, 4, 5].map((n) => (
+            <div key={n} className="card skeleton-card">
+              <div className="sk sk-thumb tile" />
+              <div className="sk sk-name" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // Nothing catalogued anywhere yet - a brand-new instance (a friend's fresh
   // fork, or Jess's mum's first visit) rather than an established wardrobe

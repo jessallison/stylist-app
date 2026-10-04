@@ -213,6 +213,14 @@ header.top {
 }
 
 .top-nav button:not(.theme-btn):not(.lock-btn) {
+  /* min-height 44px is the Apple/Google touch-target floor - this is a
+     one-handed-on-a-phone nav, so the tap area matters more than it would
+     on desktop. display/align-items make the extra height sit centred on
+     the text rather than pushing it to the top of a taller box; the visual
+     size (padding, font-size) is unchanged. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   padding: 8px 14px;
   font-size: 0.68rem;
   font-weight: 500;
@@ -1984,6 +1992,18 @@ header.top {
    are coming" rather than three identical blocks competing for it. */
 .skeleton-card:nth-child(2) { opacity: 0.65; }
 .skeleton-card:nth-child(3) { opacity: 0.35; }
+
+/* Initial app load (app/page.js, before /api/data returns): a full tile
+   grid rather than the suggestion list's three narrow cards, so it fades
+   over more steps and the thumb fills the tile like a real wardrobe photo
+   would, instead of the suggestion card's fixed 96px square. */
+.skeleton-grid .sk-thumb.tile {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+}
+.skeleton-grid .skeleton-card:nth-child(4) { opacity: 0.65; }
+.skeleton-grid .skeleton-card:nth-child(5) { opacity: 0.35; }
+.skeleton-grid .skeleton-card:nth-child(6) { opacity: 0.2; }
 
 @media (prefers-reduced-motion: reduce) {
   .sk,
