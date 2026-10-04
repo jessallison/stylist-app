@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Playfair_Display } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 
 // Editorial serif for the brand and headings - Didone-adjacent, in the
 // spirit of the fashion-house references. Self-hosted by next/font at build.
@@ -29,7 +30,10 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={playfair.variable}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
