@@ -380,7 +380,17 @@ export async function POST(request) {
   // trousers, or a skirt with a dress, is fine (a slip skirt over wide-legs,
   // say), so this only ever caps the Skirts count, it doesn't touch pairing
   // across categories the way validDressPairing below does for dresses.
-  const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts", "Hats", "Gloves", "Skirts"];
+  // Knitwear & jumpers is capped the same way - two jumpers stacked is never
+  // wearable, full stop. This is a flat per-category cap, not a pairing
+  // rule, so a Tops piece (a lighter long-sleeve layer) plus one Knitwear &
+  // jumpers piece is untouched - only a second item from the Knitwear
+  // category itself trips it. A cardigan that's genuinely cut to layer over
+  // another knit would also trip this, same as any other Knitwear item -
+  // there's no subfield distinguishing "open cardigan" from "pullover
+  // jumper" yet (both share this one category), so that case is parked in
+  // IDEAS.md rather than guessed at from the name, same reasoning as the
+  // dresses/layersOverDresses case below.
+  const ONE_PER_OUTFIT_CATEGORIES = ["Shoes", "Bags", "Sunglasses", "Belts", "Hats", "Gloves", "Skirts", "Knitwear & jumpers"];
 
   // At most one "outer" leg covering per outfit (long trousers, shorts,
   // skorts, hot pants - whichever kind, only one), plus optionally one
@@ -594,7 +604,7 @@ ${identityText(settings)}
 RULES:
 - item_ids may only contain ids from the OWNED WARDROBE list${anchor ? ` (plus the anchor ${anchor.id})` : ""}${flow === "C" && !anchor ? ` (plus "NEW" for the just-bought anchor)` : ""}.
 - 2 to 6 items per outfit; complete looks (shoes/outerwear when the wardrobe has suitable ones), accessories encouraged.
-- Never more than one pair of shoes, one bag, one pair of sunglasses, one belt, one hat, one pair of gloves or one skirt in the same outfit. A skirt paired with trousers or with a dress is fine - it's only ever two skirts together that's wrong.
+- Never more than one pair of shoes, one bag, one pair of sunglasses, one belt, one hat, one pair of gloves, one skirt or one knitwear/jumper piece in the same outfit. A skirt paired with trousers or with a dress is fine - it's only ever two skirts together that's wrong. Same idea for knitwear: a jumper over a lighter long-sleeve top is fine, it's two jumpers/cardigans stacked that's never wearable.
 - Only one "outer" leg covering per outfit - one pair of trousers, OR one pair of shorts (or skorts/hot pants), never two of the same kind and never two different kinds together. Leggings or tights can go underneath that one outer piece, but only one pair of those too - never two pairs of leggings, and never leggings as a second "outer" layer.
 - Never two dresses in one outfit unless at least one is tagged "can layer over/under another dress" in the wardrobe list - most dresses (a jumper dress, a shirt dress) can never both be worn at once, only a sheer/lace/slip cut is actually built to go over or under one.
 - Watch proportion: if two of the outfit's pieces are both loose or voluminous (an oversized top or dress with wide-leg or baggy bottoms, two boxy layers), either say in "styling_notes" what defines the shape (tuck, belt, a fitted layer) or pick something slimmer instead - don't pair two loose pieces silently and assume it works. Their style can genuinely lean slouchy/relaxed (see THREE WORDS above), so this is a check to reason through, not a ban on volume.
