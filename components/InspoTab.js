@@ -14,6 +14,8 @@ import {
   toggleIn,
   ChipPick,
   FilterGroup,
+  FilterButton,
+  FilterSheet,
   PhotoButton,
   Thumb,
   TileToggle,
@@ -534,12 +536,11 @@ export default function InspoTab({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button
-          className={`btn ghost ${activeCount ? "has-filters" : ""}`}
+        <FilterButton
+          count={activeCount}
+          open={showFilters}
           onClick={() => setShowFilters(!showFilters)}
-        >
-          Filters{activeCount ? ` (${activeCount})` : ""}
-        </button>
+        />
         {activeCount > 0 && (
           <button
             type="button"
@@ -616,7 +617,20 @@ export default function InspoTab({
         />
       )}
       {showFilters && (
-        <div className="filter-panel">
+        <FilterSheet
+          open={showFilters}
+          onClose={() => setShowFilters(false)}
+          canClear={activeCount > 0}
+          onClear={() => {
+            setTypes(new Set());
+            setTagsSel(new Set());
+            setCols(new Set());
+            setOccs(new Set());
+            setSeas(new Set());
+          }}
+          resultCount={shown.length}
+          nouns={["image", "images"]}
+        >
           <FilterGroup
             title="Type"
             options={countsFor("type", INSPO_TYPES, (i, v) => i.type === v, types)}
@@ -663,7 +677,7 @@ export default function InspoTab({
             selected={occs}
             onToggle={(v) => toggleIn(occs, v, setOccs)}
           />
-        </div>
+        </FilterSheet>
       )}
 
       {inspo.length === 0 && (

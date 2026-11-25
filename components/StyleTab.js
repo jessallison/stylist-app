@@ -11,6 +11,8 @@ import {
   uploadImage,
   deleteImage,
   FilterGroup,
+  FilterButton,
+  FilterSheet,
   toggleIn,
   outfitFacets,
   sortItemIdsByCategory,
@@ -1107,13 +1109,11 @@ export default function StyleTab({
             />
           </div>
           <div className="toolbar">
-            <button
-              type="button"
-              className={`btn ghost ${activeLookFilterCount ? "has-filters" : ""}`}
+            <FilterButton
+              count={activeLookFilterCount}
+              open={showLookFilters}
               onClick={() => setShowLookFilters(!showLookFilters)}
-            >
-              Filters{activeLookFilterCount ? ` (${activeLookFilterCount})` : ""}
-            </button>
+            />
             {activeLookFilterCount > 0 && (
               <button
                 type="button"
@@ -1137,7 +1137,18 @@ export default function StyleTab({
             </button>
           </div>
           {showLookFilters && (
-            <div className="filter-panel">
+            <FilterSheet
+              open={showLookFilters}
+              onClose={() => setShowLookFilters(false)}
+              canClear={activeLookFilterCount > 0}
+              onClear={() => {
+                setLookSeas(new Set());
+                setLookForm(new Set());
+                setLookCols(new Set());
+              }}
+              resultCount={filteredLooks.length}
+              nouns={["look", "looks"]}
+            >
               <FilterGroup
                 title="Season"
                 options={lookCountsFor(
@@ -1155,7 +1166,7 @@ export default function StyleTab({
                 selected={lookForm}
                 onToggle={(v) => toggleIn(lookForm, v, setLookForm)}
               />
-            </div>
+            </FilterSheet>
           )}
           {packListIds.length > 0 && (
             <div className="pack-summary">

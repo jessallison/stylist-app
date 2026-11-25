@@ -18,6 +18,8 @@ import {
   DuplicatesPanel,
   DupesToggle,
   FilterGroup,
+  FilterButton,
+  FilterSheet,
   toggleIn,
   outfitFacets,
   sortItemIdsByCategory,
@@ -540,13 +542,11 @@ export default function ProfileTab({
           onPhoto={addPhoto}
           onError={flash}
         />
-        <button
-          type="button"
-          className={`btn ghost ${activeWornFilterCount ? "has-filters" : ""}`}
+        <FilterButton
+          count={activeWornFilterCount}
+          open={showWornFilters}
           onClick={() => setShowWornFilters(!showWornFilters)}
-        >
-          Filters{activeWornFilterCount ? ` (${activeWornFilterCount})` : ""}
-        </button>
+        />
         {activeWornFilterCount > 0 && (
           <button
             type="button"
@@ -568,7 +568,17 @@ export default function ProfileTab({
       </div>
 
       {showWornFilters && (
-        <div className="filter-panel">
+        <FilterSheet
+          open={showWornFilters}
+          onClose={() => setShowWornFilters(false)}
+          canClear={activeWornFilterCount > 0}
+          onClear={() => {
+            setWornSeas(new Set());
+            setWornForm(new Set());
+          }}
+          resultCount={filteredProfile.length}
+          nouns={["outfit", "outfits"]}
+        >
           <FilterGroup
             title="Season"
             options={wornCountsFor(
@@ -586,7 +596,7 @@ export default function ProfileTab({
             selected={wornForm}
             onToggle={(v) => toggleIn(wornForm, v, setWornForm)}
           />
-        </div>
+        </FilterSheet>
       )}
 
       {pendingWorn && (

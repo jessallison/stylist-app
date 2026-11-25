@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { COLOUR_TEXT_HEX } from "../lib/style-identity";
 
 // Small shared pieces used by every tab.
@@ -416,6 +416,117 @@ export function DupesToggle({ count, open, onToggle }) {
 // `swatches` is an optional {value: hex} map (see COLOUR_TEXT_HEX) - when
 // given, each option's label renders in that colour so the Colour filter
 // panel reads the same way the colour chip pickers do.
+// The Filters trigger every tab shares. Says what it is (icon + label), says
+// how many filters are applied (count in the label, green fill via the
+// existing .has-filters rule), and exposes open/closed to assistive tech.
+export function FilterButton({ count, open, onClick }) {
+  return (
+    <button
+      type="button"
+      className={`btn ghost filter-btn ${count ? "has-filters" : ""}`}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      onClick={onClick}
+    >
+      <svg
+        className="filter-btn-icon"
+        viewBox="0 0 16 16"
+        width="14"
+        height="14"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path
+          d="M2 4h12M2 8h12M2 12h12"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          fill="none"
+        />
+        <circle cx="10.5" cy="4" r="1.7" fill="currentColor" />
+        <circle cx="5.5" cy="8" r="1.7" fill="currentColor" />
+        <circle cx="9" cy="12" r="1.7" fill="currentColor" />
+      </svg>
+      Filters{count ? ` (${count})` : ""}
+    </button>
+  );
+}
+
+// The filter panel itself: a bottom sheet on phones, a centred dialog on
+// wider screens, instead of a block that expands inline somewhere below the
+// toolbar (where it could end up a long scroll away from the button that
+// opened it, with no sign of how to dismiss it). Filters still apply live as
+// boxes are ticked, so the primary button doesn't "apply" anything - it
+// closes the sheet and shows how many results the current filters leave,
+// which is the number a person is actually after. Closes via the visible
+// Close button, the primary button, a tap on the dimmed backdrop, or Escape;
+// focus goes back to the Filters button that opened it.
+export function FilterSheet({
+  open,
+  onClose,
+  onClear,
+  canClear,
+  resultCount,
+  nouns = ["result", "results"],
+  children,
+}) {
+  const closeRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      if (opener && typeof opener.focus === "function") opener.focus();
+    };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!open) return null;
+  return (
+    <div className="sheet-bg" onClick={onClose}>
+      <div
+        className="filter-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Filters"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sheet-head">
+          <h2>Filters</h2>
+          <button
+            type="button"
+            className="sheet-close"
+            ref={closeRef}
+            onClick={onClose}
+            aria-label="Close filters"
+          >
+            Close <span aria-hidden="true">✕</span>
+          </button>
+        </div>
+        <div className="sheet-body filter-panel">{children}</div>
+        <div className="sheet-foot">
+          <button type="button" className="sheet-clear" disabled={!canClear} onClick={onClear}>
+            Clear all
+          </button>
+          <button type="button" className="btn sheet-done" onClick={onClose}>
+            {resultCount === 0
+              ? "No matches - close"
+              : `Show ${resultCount} ${resultCount === 1 ? nouns[0] : nouns[1]}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function FilterGroup({ title, options, selected, onToggle, swatches }) {
   return (
     <div className="f-group">

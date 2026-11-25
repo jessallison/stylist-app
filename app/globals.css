@@ -851,6 +851,151 @@ header.top.collapsed .top-nav .theme-btn svg {
    and the panel can just render as a normal dark card like everything
    else instead of a "light island" special case. */
 
+/* --- Filter trigger + sheet --------------------------------------------------
+   The Filters button (FilterButton in shared.js) and the sheet it opens
+   (FilterSheet). Bottom sheet on phones, centred dialog from 720px up. The
+   body is the old .filter-panel grid, just without its own border/margin now
+   that the sheet supplies the frame. z-index 22: above the sticky header
+   (15) and the page, below the login gate (.modal-bg, 20 is the gate's own
+   layer and it never coexists with the sheet) and toasts (30). */
+
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-btn-icon {
+  flex: 0 0 auto;
+}
+
+.sheet-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 18, 16, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 22;
+}
+
+.filter-sheet {
+  background: var(--bg);
+  border-top: 1px solid var(--ink);
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+  animation: sheet-up 0.22s ease-out;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-sheet {
+    animation: none;
+  }
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.sheet-head h2 {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.4rem;
+}
+
+.sheet-close {
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 14px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.filter-sheet .sheet-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  border: 0;
+  margin: 0;
+  background: transparent;
+  padding: 20px;
+}
+
+.sheet-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.sheet-clear {
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  text-decoration: underline;
+  padding: 12px 4px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.sheet-clear:disabled {
+  opacity: 0.35;
+  cursor: default;
+  text-decoration: none;
+}
+
+.sheet-done {
+  flex: 1 1 auto;
+  min-height: 44px;
+}
+
+@media (min-width: 720px) {
+  .sheet-bg {
+    align-items: center;
+    padding: 24px;
+  }
+  .filter-sheet {
+    border: 1px solid var(--ink);
+    max-height: 80vh;
+    max-height: 80dvh;
+  }
+}
+
 .f-group-title {
   font-size: 0.6rem;
   font-weight: 600;

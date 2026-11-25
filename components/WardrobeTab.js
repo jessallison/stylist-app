@@ -14,6 +14,8 @@ import {
   toggleIn,
   ChipPick,
   FilterGroup,
+  FilterButton,
+  FilterSheet,
   PhotoButton,
   Thumb,
   TileToggle,
@@ -1037,12 +1039,11 @@ export default function WardrobeTab({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button
-          className={`btn ghost ${activeCount ? "has-filters" : ""}`}
+        <FilterButton
+          count={activeCount}
+          open={showFilters}
           onClick={() => setShowFilters(!showFilters)}
-        >
-          Filters{activeCount ? ` (${activeCount})` : ""}
-        </button>
+        />
         {activeCount > 0 && (
           <button
             type="button"
@@ -1301,7 +1302,22 @@ export default function WardrobeTab({
         </div>
       )}
       {showFilters && (
-        <div className="filter-panel">
+        <FilterSheet
+          open={showFilters}
+          onClose={() => setShowFilters(false)}
+          canClear={activeCount > 0}
+          onClear={() => {
+            setCats(new Set());
+            setTagsSel(new Set());
+            setBrands(new Set());
+            setCols(new Set());
+            setSeas(new Set());
+            setStatus(new Set());
+            setFlags(new Set());
+          }}
+          resultCount={shown.length}
+          nouns={["piece", "pieces"]}
+        >
           <FilterGroup
             title="Category"
             options={countsFor("cat", CATEGORIES.map((c) => [c, c]), (w, v) => w.category === v, cats)}
@@ -1380,7 +1396,7 @@ export default function WardrobeTab({
             selected={flags}
             onToggle={(v) => toggleIn(flags, v, setFlags)}
           />
-        </div>
+        </FilterSheet>
       )}
 
       {luckyEntry && (
